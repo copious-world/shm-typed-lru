@@ -1,0 +1,58 @@
+{
+  "name": "shm-typed-lru",
+  "version": "0.0.1",
+  "description": "LRU shared memory list build on top of shm-type-array.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/copious.world/shm-typed-lru.git"
+  },
+  "keywords": [
+    "ipc",
+    "shm",
+    "lru",
+    "cache",
+    "shared memory",
+    "typed array",
+    "TypedArray",
+    "ArrayBuffer",
+    "Buffer",
+    "Int8Array",
+    "Uint8Array",
+    "Uint8ClampedArray",
+    "Int16Array",
+    "Uint16Array",
+    "Int32Array",
+    "Uint32Array",
+    "Float32Array",
+    "Float64Array"
+  ],
+  "author": {
+    "name": "Richard Leddy",
+    "email": "rleddy@copious.world",
+    "url": "https://github.com/copious.world"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "nan": "^2.13.2"
+  },
+  "os": [
+    "!win32"
+  ],
+  "engines": {
+    "node": ">=4.0.0"
+  },
+  "bugs": {
+    "url": "https://github.com/copious.world/shm-typed-lru/issues"
+  },
+  "homepage": "https://github.com/copious.world/shm-typed-lru",
+  "scripts": {
+    "install": "node-gyp configure && node-gyp rebuild",
+    "test": "node test/example.js"
+  },
+  "devDependencies": {
+    "@types/node": "^10.9.4",
+    "typescript": "^2.9.2",
+    "typings-tester": "^0.3.1"
+  }
+}
