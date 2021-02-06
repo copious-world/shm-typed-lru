@@ -58,7 +58,7 @@ Here are the API's added in this repository:
 
 Given a key to a shared memory structure obtained by shm.create, this will create an LRU data structure in the shared memory region. The record size is new information not give to shm.create. The region size should be the same (see *count*). The basic communication use is for one process to be the master of the region. Call that process the initializer. Initialization creates data structurs. When *i\_am\_initializer* is set to false, the process using this module will read the existing data structures. 
 
-Within the library, each process will have a red-black tree (C++ map) that maps hashes to the offsets (from the start of the shared block). Initialization sets up the map, which grows and shrinks as elements are added or removed. Prior to future work, these trees will need to be updated by processes that do not add new records, but that read the records. So, communication beyond this module will be required. (Future work: a shared hash map in fixed memory. Communication will still be required, but less.)
+Within the library, each process will have a hash map (C++ unorderd_map) that maps hashes to the offsets (from the start of the shared block). Initialization sets up the map, which grows and shrinks as elements are added or removed. Prior to future work, these trees will need to be updated by processes that do not add new records, but that read the records. So, communication beyond this module will be required. (Future work: a shared hash map in fixed memory. Communication will still be required, but less.)
 
 ### getSegmentSize(key)
 

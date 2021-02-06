@@ -17,6 +17,7 @@ using namespace std;
 
 
 #include <map>
+#include <unordered_map>
 #include <list>
 
 
@@ -451,7 +452,7 @@ class LRU_cache {
 		uint32_t						_share_key;
 
 
-		map<uint32_t,uint32_t>			_local_hash_table;
+		unordered_map<uint32_t,uint32_t>			_local_hash_table;
 };
 
 /*
