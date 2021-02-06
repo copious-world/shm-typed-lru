@@ -1,7 +1,8 @@
 IPC shared memory LRU cache for Node.js  
-Based upon shm-typed-array
 
-![npm](https://img.shields.io/npm/v/shm-typed-array.svg) ![travis](https://travis-ci.org/ukrbublik/shm-typed-array.svg?branch=master)
+##### Based upon shm-typed-array with the following state of testing.
+
+![travis](https://travis-ci.org/ukrbublik/shm-typed-array.svg?branch=master)
 
 ``` bash
 For shm-type-array, please refer to:
@@ -12,9 +13,16 @@ For shm-type-array, please refer to:
   }
 ```
 
+##### shm-type-lru tests and npm (coming soon)
+
+
 # Purpose
 
-This repository provides a simple LRU for fixed sized elements residing in shared memory. It make the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharin an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
+This repository provides a simple LRU for fixed sized elements residing in shared memory. It make the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
+
+(The author chose not to clone the original repository since there many changes to C++, and changing the C++ was more expedient than trying to manage separate stacks. In the future, this problem, not necessarily apparent to all the upstream repositories will be resolved.)
+
+>>The module, shared-typed-array was written to manage a collection of shared memory regions. Application s of shared-typed-lru may make use of that to enhance communication. Or, more than one LRU may be managed for different record sizes.
   
 # Install
 
@@ -46,33 +54,61 @@ See [example.js](https://github.com/ukrbublik/shm-typed-array/)
 
 Here are the API's added in this repository:
 
-### initLRU(key,record_size,region_size,i_am_initializer)
+### initLRU(key,record_size,region\_size,i\_am\_initializer)
+
+Given a key to a shared memory structure obtained by shm.create, this will create an LRU data structure in the shared memory region. The record size is new information not give to shm.create. The region size should be the same (see *count*). The basic communication use is for one process to be the master of the region. Call that process the initializer. Initialization creates data structurs. When *i\_am\_initializer* is set to false, the process using this module will read the existing data structures. 
+
+Within the library, each process will have a red-black tree (C++ map) that maps hashes to the offsets (from the start of the shared block). Initialization sets up the map, which grows and shrinks as elements are added or removed. Prior to future work, these trees will need to be updated by processes that do not add new records, but that read the records. So, communication beyond this module will be required. (Future work: a shared hash map in fixed memory. Communication will still be required, but less.)
 
 ### getSegmentSize(key)
 
+Given a key for a shared memory region, this returns the length of just that region.
+
 ### set(key,hash,value)
 
-### get_el(key,index)
+The application creates a hash key fitting UInt32. The key becomes the identifier for the stored value. The value should fit within the *record\_size* provided to initLRU.
 
-### get_el_hash(key,hash)
+Returns: UInt32 offset to the element record. (Care should be taken when using the index versions of get, set, del.
 
-### del_el(key,index)
+### get_el\_hash(key,hash)
+
+Retuns the value previously stored in conjunction with the provided hash.
 
 ### del_key(key,hash)
 
-### get_last_reason(key)
+Deletes the record (moves it to the free list), and removes the hash from  any hash map data structures governed by the module.
 
-### reload_hash_map(key)
+### get_el(key,index)
 
-### reload_hash_map_update(key,share_key)
+Retuns the value previously stored in conjunction with the index returned from *set*. (Note: if the element has been deleted, the value, prepended with the string "DELETED" will be accessible until it is overwritten. The element will not be accesible by the hash version of this method.)
 
-### run_lru_eviction(key,cutoff_time,max_evictions)
+### del_el(key,index)
 
-### set_share_key(key,index,share_key)
+Deletes the record (moves it to the free list), and removes the internally stored hash from  any hash map data structures governed by the module.
 
-### debug_dump_list(key,backwards)
+### get\_last_reason(key)
 
+If an error occurs, as may be indicated by negative return values from methods, this method reports the reason published by the module. Accessing the reason will cause it to be reset to "OK", its initial state. 
 
+### reload\_hash_map(key)
+
+Synchronizes the internal hash map for the calling process with the existing allocated data.
+
+### reload\_hash\_map\_update(key,share_key)
+
+Does the same as *reload\_hash_map*, but only inspects elements with a share_key matching the one passed to this method.
+
+### run\_lru\_eviction(key,cutoff\_time,max_evictions)
+
+The application process sets the policy as to when to run the eviction method. This method deletes all elements that are prior to the time cutoff up to as many as max\_evictions. 
+
+### set\_share\_key(key,index,share_key)
+
+Access an element by index and sets its share_key for use in reloading hash maps. 
+
+### debug\_dump\_list(key,backwards)
+
+This method dumps a JSON format of all the elements currently allocated in the LRU.
 
 # Cleanup
 This library does cleanup of created SHM segments only on normal exit of process, see [`exit` event](https://nodejs.org/api/process.html#process_event_exit).  
@@ -83,7 +119,7 @@ shm.detachAll();
 
 
 # Usage
-See [example.js](https://github.com/ukrbublik/shm-typed-array/blob/master/test/example.js)
+See [example.js](https://github.com/copious-world/shm-typed-lru/blob/master/test/example.js)
 
 ``` js
 const cluster = require('cluster');
@@ -321,4 +357,4 @@ function groupSuicide() {
 
 **Output:**
 
-An example is provided in the repository: [[]]
+An example is provided in the repository: [test output](https://github.com/copious-world/shm-typed-lru/blob/master/test/exampe-output.txt)
