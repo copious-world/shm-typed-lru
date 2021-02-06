@@ -1,0 +1,271 @@
+[Master] Typeof buf: Buffer Typeof arr: Float32Array
+CACHE: -4275643
+CACHE: -4275643
+Segment Size: 10000
+arr2D2 >> el_id: 846
+arr2D2 >> value: this is at test
+arr2D2 >> el_id: 846
+arr2D2 >> value: we test different this time
+arr2D2 >> el_id: 1128
+arr2D2 >> value[1128]: we wolly gollies abren
+deleted
+post del arr2D2 >> value[1128]: DELETED: we wolly gollies abren
+fetching after adding arr2D2 >> hash[137]: value[GEEE 0 wolly gollies abren]
+fetching after adding arr2D2 >> hash[138]: value[GEEE 1 wolly gollies abren]
+fetching after adding arr2D2 >> hash[139]: value[GEEE 2 wolly gollies abren]
+fetching after adding arr2D2 >> hash[140]: value[GEEE 3 wolly gollies abren]
+fetching after adding arr2D2 >> hash[141]: value[GEEE 4 wolly gollies abren]
+fetching after adding arr2D2 >> hash[142]: value[GEEE 5 wolly gollies abren]
+fetching after adding arr2D2 >> hash[143]: value[GEEE 6 wolly gollies abren]
+fetching after adding arr2D2 >> hash[144]: value[GEEE 7 wolly gollies abren]
+fetching after adding arr2D2 >> hash[145]: value[GEEE 8 wolly gollies abren]
+fetching after adding arr2D2 >> hash[146]: value[GEEE 9 wolly gollies abren]
+[{
+	"offset": 3666, "hash": 146,
+	"next": 3384, "prev:" 0,
+	"when": 1612640005,
+	"value: ""GEEE 9 wolly gollies abren"
+},
+{
+	"offset": 3384, "hash": 145,
+	"next": 3102, "prev:" 3666,
+	"when": 1612640005,
+	"value: ""GEEE 8 wolly gollies abren"
+},
+{
+	"offset": 3102, "hash": 144,
+	"next": 2820, "prev:" 3384,
+	"when": 1612640005,
+	"value: ""GEEE 7 wolly gollies abren"
+},
+{
+	"offset": 2820, "hash": 143,
+	"next": 2538, "prev:" 3102,
+	"when": 1612640005,
+	"value: ""GEEE 6 wolly gollies abren"
+},
+{
+	"offset": 2538, "hash": 142,
+	"next": 2256, "prev:" 2820,
+	"when": 1612640005,
+	"value: ""GEEE 5 wolly gollies abren"
+},
+{
+	"offset": 2256, "hash": 141,
+	"next": 1974, "prev:" 2538,
+	"when": 1612640005,
+	"value: ""GEEE 4 wolly gollies abren"
+},
+{
+	"offset": 1974, "hash": 140,
+	"next": 1692, "prev:" 2256,
+	"when": 1612640005,
+	"value: ""GEEE 3 wolly gollies abren"
+},
+{
+	"offset": 1692, "hash": 139,
+	"next": 1410, "prev:" 1974,
+	"when": 1612640005,
+	"value: ""GEEE 2 wolly gollies abren"
+},
+{
+	"offset": 1410, "hash": 138,
+	"next": 1128, "prev:" 1692,
+	"when": 1612640005,
+	"value: ""GEEE 1 wolly gollies abren"
+},
+{
+	"offset": 1128, "hash": 137,
+	"next": 846, "prev:" 1410,
+	"when": 1612640005,
+	"value: ""GEEE 0 wolly gollies abren"
+},
+{
+	"offset": 846, "hash": 134,
+	"next": 282, "prev:" 1128,
+	"when": 1612640005,
+	"value: ""we test different this time"
+},
+{"offset": -1 }]
+144
+fetching after adding arr2D2 >> hash[144]: value[GEEE 7 wolly gollies abren]
+144
+fetching after adding arr2D2 >> hash[144]: value[GEEE 7 wolly gollies abren]
+140
+fetching after adding arr2D2 >> hash[140]: value[GEEE 3 wolly gollies abren]
+[{
+	"offset": 1974, "hash": 140,
+	"next": 3102, "prev:" 0,
+	"when": 1612640005,
+	"value: ""GEEE 3 wolly gollies abren"
+},
+{
+	"offset": 3102, "hash": 144,
+	"next": 3666, "prev:" 1974,
+	"when": 1612640005,
+	"value: ""GEEE 7 wolly gollies abren"
+},
+{
+	"offset": 3666, "hash": 146,
+	"next": 3384, "prev:" 3102,
+	"when": 1612640005,
+	"value: ""GEEE 9 wolly gollies abren"
+},
+{
+	"offset": 3384, "hash": 145,
+	"next": 2820, "prev:" 3666,
+	"when": 1612640005,
+	"value: ""GEEE 8 wolly gollies abren"
+},
+{
+	"offset": 2820, "hash": 143,
+	"next": 2538, "prev:" 3384,
+	"when": 1612640005,
+	"value: ""GEEE 6 wolly gollies abren"
+},
+{
+	"offset": 2538, "hash": 142,
+	"next": 2256, "prev:" 2820,
+	"when": 1612640005,
+	"value: ""GEEE 5 wolly gollies abren"
+},
+{
+	"offset": 2256, "hash": 141,
+	"next": 1692, "prev:" 2538,
+	"when": 1612640005,
+	"value: ""GEEE 4 wolly gollies abren"
+},
+{
+	"offset": 1692, "hash": 139,
+	"next": 1410, "prev:" 2256,
+	"when": 1612640005,
+	"value: ""GEEE 2 wolly gollies abren"
+},
+{
+	"offset": 1410, "hash": 138,
+	"next": 1128, "prev:" 1692,
+	"when": 1612640005,
+	"value: ""GEEE 1 wolly gollies abren"
+},
+{
+	"offset": 1128, "hash": 137,
+	"next": 846, "prev:" 1410,
+	"when": 1612640005,
+	"value: ""GEEE 0 wolly gollies abren"
+},
+{
+	"offset": 846, "hash": 134,
+	"next": 282, "prev:" 1128,
+	"when": 1612640005,
+	"value: ""we test different this time"
+},
+{"offset": -1 }]
+-----------------------------------------------
+[{
+	"offset": 846, "hash": 134,
+	"next": 282, "prev:" 1128,
+	"when": 1612640005,
+	"value: ""we test different this time"
+},
+{
+	"offset": 1128, "hash": 137,
+	"next": 846, "prev:" 1410,
+	"when": 1612640005,
+	"value: ""GEEE 0 wolly gollies abren"
+},
+{
+	"offset": 1410, "hash": 138,
+	"next": 1128, "prev:" 1692,
+	"when": 1612640005,
+	"value: ""GEEE 1 wolly gollies abren"
+},
+{
+	"offset": 1692, "hash": 139,
+	"next": 1410, "prev:" 2256,
+	"when": 1612640005,
+	"value: ""GEEE 2 wolly gollies abren"
+},
+{
+	"offset": 2256, "hash": 141,
+	"next": 1692, "prev:" 2538,
+	"when": 1612640005,
+	"value: ""GEEE 4 wolly gollies abren"
+},
+{
+	"offset": 2538, "hash": 142,
+	"next": 2256, "prev:" 2820,
+	"when": 1612640005,
+	"value: ""GEEE 5 wolly gollies abren"
+},
+{
+	"offset": 2820, "hash": 143,
+	"next": 2538, "prev:" 3384,
+	"when": 1612640005,
+	"value: ""GEEE 6 wolly gollies abren"
+},
+{
+	"offset": 3384, "hash": 145,
+	"next": 2820, "prev:" 3666,
+	"when": 1612640005,
+	"value: ""GEEE 8 wolly gollies abren"
+},
+{
+	"offset": 3666, "hash": 146,
+	"next": 3384, "prev:" 3102,
+	"when": 1612640005,
+	"value: ""GEEE 9 wolly gollies abren"
+},
+{
+	"offset": 3102, "hash": 144,
+	"next": 3666, "prev:" 1974,
+	"when": 1612640005,
+	"value: ""GEEE 7 wolly gollies abren"
+},
+{
+	"offset": 1974, "hash": 140,
+	"next": 3102, "prev:" 0,
+	"when": 1612640005,
+	"value: ""GEEE 3 wolly gollies abren"
+},
+{"offset": -1 }]
+[Worker] Typeof buf: Buffer Typeof arr: Float32Array
+0 [Worker] Get buf[0]= 1  arr[0]= 10
+CHILD arr2D2 >> hash[137]: value[GEEE 0 wolly gollies abren]
+CHILD arr2D2 >> hash[138]: value[GEEE 1 wolly gollies abren]
+CHILD arr2D2 >> hash[139]: value[GEEE 2 wolly gollies abren]
+CHILD arr2D2 >> hash[140]: value[GEEE 3 wolly gollies abren]
+CHILD arr2D2 >> hash[141]: value[GEEE 4 wolly gollies abren]
+CHILD arr2D2 >> hash[142]: value[GEEE 5 wolly gollies abren]
+CHILD arr2D2 >> hash[143]: value[GEEE 6 wolly gollies abren]
+CHILD arr2D2 >> hash[144]: value[GEEE 7 wolly gollies abren]
+CHILD arr2D2 >> hash[145]: value[GEEE 8 wolly gollies abren]
+CHILD arr2D2 >> hash[146]: value[GEEE 9 wolly gollies abren]
+1 [Worker] Get buf[0]= 1  arr[0]= 10
+0 [Master] Set buf[0]= 2  arr[0]= 5
+2 [Worker] Get buf[0]= 2  arr[0]= null
+140
+deleted 140
+137
+deleted 137
+137
+OK
+CHILD AFTER RELOAD >> hash[137]: value[-2]
+CHILD AFTER RELOAD >> hash[138]: value[GEEE 1 wolly gollies abren]
+CHILD AFTER RELOAD >> hash[139]: value[GEEE 2 wolly gollies abren]
+OK
+CHILD AFTER RELOAD >> hash[140]: value[-2]
+CHILD AFTER RELOAD >> hash[141]: value[GEEE 4 wolly gollies abren]
+CHILD AFTER RELOAD >> hash[142]: value[GEEE 5 wolly gollies abren]
+CHILD AFTER RELOAD >> hash[143]: value[GEEE 6 wolly gollies abren]
+CHILD AFTER RELOAD >> hash[144]: value[GEEE 7 wolly gollies abren]
+CHILD AFTER RELOAD >> hash[145]: value[GEEE 8 wolly gollies abren]
+CHILD AFTER RELOAD >> hash[146]: value[GEEE 9 wolly gollies abren]
+3 [Worker] Get buf[0]= 2  arr[0]= null
+4 [Worker] Get buf[0]= 2  arr[0]= null
+1 [Master] Set buf[0]= 3  arr[0]= 2.5
+5 [Worker] Get buf[0]= 3  arr[0]= null
+6 [Worker] Get buf[0]= 3  arr[0]= null
+7 [Worker] Get buf[0]= 3  arr[0]= null
+2 [Master] Set buf[0]= 4  arr[0]= 1.25
+8 [Worker] Get buf[0]= 4  arr[0]= null
+shm segments destroyed: 4

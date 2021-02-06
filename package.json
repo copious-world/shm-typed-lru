@@ -5,7 +5,7 @@
   "main": "index.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/copious.world/shm-typed-lru.git"
+    "url": "https://github.com/copious-world/shm-typed-lru.git"
   },
   "keywords": [
     "ipc",
@@ -30,7 +30,7 @@
   "author": {
     "name": "Richard Leddy",
     "email": "rleddy@copious.world",
-    "url": "https://github.com/copious.world"
+    "url": "https://github.com/copious-world"
   },
   "license": "MIT",
   "dependencies": {
@@ -43,9 +43,9 @@
     "node": ">=4.0.0"
   },
   "bugs": {
-    "url": "https://github.com/copious.world/shm-typed-lru/issues"
+    "url": "https://github.com/copious-world/shm-typed-lru/issues"
   },
-  "homepage": "https://github.com/copious.world/shm-typed-lru",
+  "homepage": "https://github.com/copious-world/shm-typed-lru",
   "scripts": {
     "install": "node-gyp configure && node-gyp rebuild",
     "test": "node test/example.js"
