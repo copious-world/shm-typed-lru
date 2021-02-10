@@ -150,6 +150,7 @@ namespace node_shm {
 
 
 	map<key_t,LRU_cache *>  g_LRU_caches_per_segment;
+	map<key_t,HH_map *>  g_HMAP_caches_per_segment;
 	map<int,size_t> g_ids_to_seg_sizes;
 
 
@@ -399,6 +400,10 @@ namespace node_shm {
 		if ( check) {
 			g_LRU_caches_per_segment.erase(key);
 		}
+		check =  (g_HMAP_caches_per_segment.find(key) != g_HMAP_caches_per_segment.end());
+		if ( check) {
+			g_HMAP_caches_per_segment.erase(key);
+		}
 		//
 		int resId = shmget(key, 0, 0);
 		if (resId == -1) {
@@ -468,7 +473,7 @@ namespace node_shm {
 		//
 		if ( hasShmSegmentInfo(resId) ) {
 			if ( plr != nullptr ) {
-				info.GetReturnValue().Set(Nan::New<Number>(key));
+				info.GetReturnValue().Set(Nan::New<Number>(plr->max_count()));
 			} else {
 				void *region = getShmSegmentAddr(resId);
 				if ( region == nullptr ) {
@@ -481,13 +486,10 @@ namespace node_shm {
 				seg_size = ( seg_size > seg_sz ) ? seg_sz : seg_size;
 				g_ids_to_seg_sizes[resId] = seg_size;
 
-
-
 				LRU_cache *lru_cache = new LRU_cache(region,rec_size,seg_size,am_initializer);
 				if ( lru_cache->ok() ) {
 					g_LRU_caches_per_segment[key] = lru_cache;
-					info.GetReturnValue().Set(Nan::New<Number>(key));
-					//
+					info.GetReturnValue().Set(Nan::New<Number>(lru_cache->max_count()));
 				} else {
 					return Nan::ThrowError("Bad parametes for initLRU");
 				}
@@ -501,6 +503,73 @@ namespace node_shm {
 			info.GetReturnValue().Set(Nan::New<Number>(-1));
 		}
 	}
+
+
+	
+	// fixed size data elements 
+	NAN_METHOD(initHopScotch) {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		key_t lru_key =  Nan::To<uint32_t>(info[1]).FromJust();
+		bool am_initializer = Nan::To<bool>(info[2]).FromJust();
+		size_t max_element_count = Nan::To<uint32_t>(info[3]).FromJust();
+		//
+		int resId = shmget(key, 0, 0);
+		if (resId == -1) {
+			switch(errno) {
+				case ENOENT: // not exists
+				case EIDRM:  // scheduled for deletion
+					info.GetReturnValue().Set(Nan::New<Number>(-1));
+					return;
+				default:
+					return Nan::ThrowError(strerror(errno));
+			}
+		}
+		//
+		HH_map *phm = g_HMAP_caches_per_segment[key];
+		//
+		if ( hasShmSegmentInfo(resId) ) {
+			if ( phm != nullptr ) {
+				info.GetReturnValue().Set(Nan::New<Number>(key));
+			} else {
+				void *region = getShmSegmentAddr(resId);
+				if ( region == nullptr ) {
+					info.GetReturnValue().Set(Nan::New<Number>(-1));
+					return;
+				}
+				//
+				HH_map *hmap = new HH_map(region,max_element_count,am_initializer);
+				if ( hmap->ok() ) {
+					g_HMAP_caches_per_segment[key] = hmap;
+					// assign this HH_map to an LRU
+					LRU_cache *lru_cache = g_LRU_caches_per_segment[lru_key];
+					if ( lru_cache == nullptr ) {
+						if ( shmCheckKey(key) ) {
+							info.GetReturnValue().Set(Nan::New<Number>(-2));
+						} else {
+							info.GetReturnValue().Set(Nan::New<Number>(-3));
+						}
+					} else {
+						lru_cache->set_hash_impl(hmap);
+						info.GetReturnValue().Set(Nan::New<Boolean>(true));
+					}
+					//
+				} else {
+					return Nan::ThrowError("Bad parametes for initLRU");
+				}
+				//
+			}
+
+		} else {
+			if ( phm != nullptr ) {
+				g_HMAP_caches_per_segment.erase(key);
+			}
+			info.GetReturnValue().Set(Nan::New<Number>(-1));
+		}
+	}
+
+
+
 
 	NAN_METHOD(getSegSize) {
 		Nan::HandleScope scope;
@@ -522,11 +591,36 @@ namespace node_shm {
 	}
 
 
+
+	NAN_METHOD(getMaxCount) {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+
+		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
+		if ( lru_cache == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			uint32_t maxcount = lru_cache->max_count();
+			info.GetReturnValue().Set(Nan::New<Number>(maxcount));
+		}
+	}
+
+
 	NAN_METHOD(set_el)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		key_t hash = Nan::To<uint32_t>(info[1]).FromJust();
-		Utf8String data_arg(info[2]);
+		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t index = Nan::To<uint32_t>(info[2]).FromJust();
+		Utf8String data_arg(info[3]);
+		//
+		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+//cout << "set_el h> " << hash << " i> " << index << " " << hash64 << endl;
+
+		//
 
 		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
 		if ( lru_cache == nullptr ) {
@@ -537,9 +631,9 @@ namespace node_shm {
 			}
 		} else {
 			char *data = *data_arg;
-			 uint32_t offset = lru_cache->check_for_hash(hash);
+			 uint32_t offset = lru_cache->check_for_hash(hash64);
 			if ( offset == UINT32_MAX ) {
-				uint32_t offset = lru_cache->add_el(data,hash);
+				uint32_t offset = lru_cache->add_el(data,hash64);
 				info.GetReturnValue().Set(Nan::New<Number>(offset));
 			} else {
 				if ( lru_cache->update_el(offset,data) ) {
@@ -587,7 +681,13 @@ namespace node_shm {
 	NAN_METHOD(get_el_hash)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		key_t hash = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t index = Nan::To<uint32_t>(info[2]).FromJust();
+		//
+		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+		//
+//cout << "get h> " << hash << " i> " << index << " " << hash64 << endl;
+		//
 		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
 		if ( lru_cache == nullptr ) {
 			if ( shmCheckKey(key) ) {
@@ -596,7 +696,7 @@ namespace node_shm {
 				info.GetReturnValue().Set(Nan::New<Number>(-1));
 			}
 		} else {
-			uint32_t index = lru_cache->check_for_hash(hash);
+			uint32_t index = lru_cache->check_for_hash(hash64);
 			if ( index == UINT32_MAX ) {
 				info.GetReturnValue().Set(Nan::New<Number>(-2));
 			} else {
@@ -639,7 +739,9 @@ namespace node_shm {
 	NAN_METHOD(del_key)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		key_t hash = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t index = Nan::To<uint32_t>(info[2]).FromJust();
+		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
 		//
 		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
 		if ( lru_cache == nullptr ) {
@@ -649,7 +751,7 @@ namespace node_shm {
 				info.GetReturnValue().Set(Nan::New<Number>(-1));
 			}
 		} else {
-			uint32_t index = lru_cache->check_for_hash(hash);
+			uint32_t index = lru_cache->check_for_hash(hash64);
 			if ( index == UINT32_MAX ) {
 				info.GetReturnValue().Set(Nan::New<Number>(-2));
 			} else {
@@ -663,6 +765,25 @@ namespace node_shm {
 		}
 	}
 
+	NAN_METHOD(remove_key)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t index = Nan::To<uint32_t>(info[2]).FromJust();
+		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+		//
+		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
+		if ( lru_cache == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			lru_cache->remove_key(hash64);
+			info.GetReturnValue().Set(Nan::New<Boolean>(true));
+		}
+	}
 
 	NAN_METHOD(set_share_key)  {
 		Nan::HandleScope scope;
@@ -686,7 +807,6 @@ namespace node_shm {
 		}
 	}
 
-
 	NAN_METHOD(get_last_reason)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
@@ -704,9 +824,6 @@ namespace node_shm {
 		}
 	}
 
-
-
-
 	NAN_METHOD(reload_hash_map)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
@@ -723,8 +840,6 @@ namespace node_shm {
 			info.GetReturnValue().Set(Nan::New<Boolean>(true));
 		}
 	}
-
-
 
 	NAN_METHOD(reload_hash_map_update)  {
 		Nan::HandleScope scope;
@@ -744,8 +859,6 @@ namespace node_shm {
 		}
 	}
 
-
-
 	NAN_METHOD(run_lru_eviction)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
@@ -759,7 +872,7 @@ namespace node_shm {
 				info.GetReturnValue().Set(Nan::New<Number>(-1));
 			}
 		} else {
-			list<uint32_t> evict_list;
+			list<uint64_t> evict_list;
 			uint8_t max_evict = (uint8_t)(max_evict_b);
 			lru_cache->evict_least_used(cutoff,max_evict,evict_list);
 			string evicted_hash_as_str = joiner(evict_list);
@@ -798,10 +911,14 @@ namespace node_shm {
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::SetMethod(target, "initLRU", initLRU);
 		Nan::SetMethod(target, "getSegSize", getSegSize);
+		Nan::SetMethod(target, "max_count", getMaxCount);
+		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::SetMethod(target, "set_el", set_el);
 		Nan::SetMethod(target, "get_el", get_el);
 		Nan::SetMethod(target, "del_el", del_el);
 		Nan::SetMethod(target, "del_key", del_key);
+		Nan::SetMethod(target, "remove_key", remove_key);
+
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::SetMethod(target, "get_el_hash", get_el_hash);
 		Nan::SetMethod(target, "get_last_reason", get_last_reason);
@@ -811,6 +928,9 @@ namespace node_shm {
 		//
 		Nan::SetMethod(target, "debug_dump_list", debug_dump_list);
 		//
+		// HOPSCOTCH HASH
+		Nan::SetMethod(target, "initHopScotch", initHopScotch);
+		
 		//
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::Set(target, Nan::New("IPC_PRIVATE").ToLocalChecked(), Nan::New<Number>(IPC_PRIVATE));

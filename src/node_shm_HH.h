@@ -1,0 +1,389 @@
+#ifndef _H_HOPSCOTCH_HASH_SHM_
+#define _H_HOPSCOTCH_HASH_SHM_
+
+#include "node.h"
+#include "node_buffer.h"
+#include "v8.h"
+#include "nan.h"
+#include "errno.h"
+
+#include <sys/ipc.h>
+#include <sys/types.h>
+#include <sys/shm.h>
+
+#include <iostream>
+#include <sstream>
+
+#include "hmap_interface.h"
+
+
+using namespace node;
+using namespace v8;
+using namespace std;
+
+
+#include <map>
+#include <unordered_map>
+#include <list>
+
+
+// Bringing in code from libhhash  // until further changes...
+
+
+#define WORD (8 * sizeof(uint32_t))
+#define MOD(x, n) ((x) < (n) ? (x) : (x) - (n))
+//
+#define CLZ(x) (__builtin_clzl(x))				// count leading zeros
+#define FFS(x) (__builtin_ctzl(x))				// count trailing zeros
+#define FLS(x) (WORD - CLZ(x))					// number bits possible less leading zeros
+#define GET(hh, i) ((hh) & (1L << (i)))			// ith bit returned
+#define SET(hh, i) (hh = (hh) | (1L << (i)))	// or in ith bit (ith bit set - rest 0)
+#define UNSET(x, i) (x = (x) & ~(1L << (i)))	// and with ith bit 0 - rest 1 (think of as mask)
+//
+const uint64_t HASH_MASK = (((uint64_t)0) | ~(uint32_t)(0));  // 32 bits
+//
+#define BitsPerByte 8
+#define HALF (sizeof(uint32_t)*BitsPerByte)  // should be 32
+//
+typedef unsigned long ulong;
+
+typedef struct HHASH {
+  uint32_t _neighbor;
+  uint32_t _count;
+  uint32_t _max_n;
+} HHash;
+
+
+
+class HH_map : public HMap_interface {
+	//
+	public:
+
+		// LRU_cache -- constructor
+		HH_map(void *region,uint32_t max_element_count,bool am_initializer = false) {
+			_reason = "OK";
+			_region = (uint8_t *)region;
+			_status = true;
+			_initializer = am_initializer;
+			_max_count = max_element_count;
+			uint8_t sz = sizeof(HHash);
+			uint8_t header_size = (sz  + (sz % sizeof(uint32_t)));
+			this->setup_region(am_initializer,header_size,max_element_count);
+		}
+
+		// setup_region -- part of initialization if the process is the intiator..
+		void setup_region(bool am_initializer,uint8_t header_size,uint32_t max_count) {
+			//
+			uint8_t *start = _region;
+			HHash *T = (HHash *)start;
+			//
+			if ( am_initializer ) {
+				T->_count = 0;
+				T->_max_n = max_count;
+				T->_neighbor = FLS(max_count - 1);
+			} else {
+				max_count = T->_max_n;	// just in case
+			}
+			//
+			_region_V = (uint64_t *)(start + header_size);  // start on word boundary
+			uint32_t v_regions_size = (sizeof(uint64_t)*max_count);
+			//
+			_region_H = (uint32_t *)(start + header_size + v_regions_size);
+			uint32_t h_regions_size = (sizeof(uint32_t)*max_count);
+			//
+			if ( am_initializer ) {
+				// storing at most 4GB hashes as 32 bit with 4GB values as 64 bit
+				memset((void *)(start + header_size),0,(h_regions_size + v_regions_size));
+			}
+		}
+
+		bool ok(void) {
+			return(this->_status);
+		}
+
+		//  store
+		uint64_t store(uint64_t loaded_hash, uint32_t v_value) {
+			uint32_t element_diff = (uint32_t)((loaded_hash >> HALF) & HASH_MASK);
+			uint32_t hash = (uint32_t)(loaded_hash & HASH_MASK);
+			//
+//cout << "store>> element_diff: " << element_diff << " hash: " << hash << endl;
+			//
+			HHash *T = (HHash *)_region;
+			return put_hh_map(T,hash,element_diff,v_value);
+		}
+
+		// get
+		uint32_t get(uint64_t key) {
+//cout << "get>> key: " << key  << " ";
+			HHash *T = (HHash *)_region;
+//cout << "T->_count: " << T->_count << " ";
+//cout << "T->_max_n: " << T->_max_n << " ";
+//cout << "T->_neighbor: " << T->_neighbor << " ";
+
+//uint32_t out = get_hh_map(T, key);
+//cout << "get>> out: " << out << endl;
+			return get_hh_map(T, key);
+		}
+
+		// del
+		uint32_t del(uint64_t key) {
+			HHash *T = (HHash *)_region;
+			return del_hh_map(T, key);
+		}
+
+		void clear(void) {
+			if ( _initializer ) {
+				uint8_t sz = sizeof(HHash);
+				uint8_t header_size = (sz  + (sz % sizeof(uint32_t)));
+				this->setup_region(_initializer,header_size,_max_count);
+			}
+		}
+
+	private:
+ 
+		uint32_t _succ_hh_hash(HHash *T, uint32_t h, uint32_t i) {
+			uint32_t N = T->_max_n;
+			h = (h % N);
+			return _succ(T, h, i);
+		}
+
+		void del_hh_hash(HHash *T, uint32_t h, uint32_t i) {
+			uint32_t *buffer = _region_H;
+			uint64_t *buffer_v = _region_V;
+
+			uint32_t N = T->_max_n;
+			h = (h % N);
+			uint32_t j = MOD(h + i, N);  // the offset relative to the original hash bucket + bucket position = absolute address
+			//
+			uint32_t V = buffer_v[j];
+			uint32_t H = buffer[h];		// the control bit in the original hash bucket
+			//
+			if ( (V == 0) || !GET(H, i)) return;
+			//
+			// reset the hash machine
+			buffer_v[j] = 0;	// clear the value slot
+			UNSET(H,i);			// remove relative position from the hash bucket
+			buffer[h] = H;		// store it
+			// lower the count
+			T->_count--;
+		}
+
+		bool put_hh_hash(HHash *T, uint32_t h, uint64_t v) {
+			uint32_t N = T->_max_n;
+			if ( (T->_count == N) || (v == 0) ) return(false);  // FULL
+			//
+			h = h % N;  // scale the hash .. make sure it indexes the array...
+			uint32_t d = _probe(T, h);  // a distance starting from h
+			if ( d == UINT32_MAX ) return(false); // the positions in the entire buffer are full.
+	//cout << "put_hh_hash: d> " << d;
+			uint32_t K =  T->_neighbor;
+			while ( d >= K ) {						// the number may be bigger than K. if wrapping, then bigger than N. 2N < UINT32_MAX.
+				uint32_t hd = MOD( (h + d), N );	// d is allowed to wrap around.
+				uint32_t z = _hop_scotch(T, hd);		// hop scotch back to a moveable positions
+	//cout << " put_hh_hash: z> " << z;
+				if ( z == 0 ) return(false);			// could not find anything that could move. (Frozen at this point..)
+				// found a position that can be moved... (offset from h <= d closer to the neighborhood)
+				uint32_t j = z;
+				z = MOD((N + hd - z), N);			// hd - z is an (offset from h) < h + d or (h + z) < (h + d)
+				uint32_t i = _succ(T, z, 0);		// either this is moveable or there's another one.
+				_swap(T, z, i, j);
+				d = MOD( (N + z + i - h), N );
+			}
+			//
+			uint32_t *buffer = _region_H;
+			uint64_t *buffer_v = _region_V;
+			//
+			uint32_t hd = MOD( (h + d), N );  // store the value
+			buffer_v[hd] = v;
+	//cout << " put_hh_hash: hd> " << hd  << " val: "  << v;
+
+			//
+			uint32_t H = buffer[h]; // update the hash machine
+			SET(H,d);
+			buffer[h] = H;
+	//cout << " put_hh_hash: h> " << h  << " H: "  << H << endl;
+
+			// up the count 
+			T->_count++;
+			return(true);
+		}
+
+		uint32_t _next(HHash *T, uint32_t h, uint32_t i) {
+			uint32_t *buffer = _region_H;
+  			uint32_t H = buffer[h] & (~0 << i);
+  			if ( H == 0 ) return UINT32_MAX;  // like -1
+  			return FFS(H);	// return the count of trailing zeros
+		}
+
+		uint32_t _succ(HHash *T, uint32_t h, uint32_t i) {
+			uint32_t *buffer = _region_H;
+			uint32_t H = buffer[h];
+//cout << "_succ: h: " << h << " H: " << H << endl;
+  			if ( GET(H, i) ) return i;		// look at the control bits of the test position... see if the position is set.
+  			return _next(T, h, i);			// otherwise, what's next...
+		}
+
+		void _swap(HHash *T, uint32_t h, uint32_t i, uint32_t j) {
+			uint32_t *buffer = _region_H;
+			uint64_t *v_buffer = _region_V;
+			//
+			uint32_t H = buffer[h];
+			UNSET(H, i);
+			SET(H, j);
+			buffer[h] = H;
+			//
+			uint32_t N = T->_max_n;
+			i = MOD((h + i), N);		// offsets from the moveable position (i will often be 0)
+			j = MOD((h + j), N);
+			//
+			uint64_t v = v_buffer[i];	// swap
+			v_buffer[i] = 0;
+			v_buffer[j] = v;
+		}
+
+		uint32_t _probe(HHash *T, uint32_t h) {   // value probe ... looking for zero
+			uint64_t *v_buffer = _region_V;
+			// // 
+			uint32_t N = T->_max_n;
+			//
+			for ( uint32_t i = 0; (h + i) < N; ++i ) {			// search forward to the end of the array (all the way even it its millions.)
+				uint64_t V = v_buffer[h + i];	// is this an empty slot? Usually, when the table is not very full.
+				if ( V == 0 ) return i;			// look no further
+			}
+			//
+			  // wrap... start searching from the start of all data...
+			for ( uint32_t j = 0; j < h != 0; ++j ) {
+				uint64_t V = v_buffer[j];	// is this an empty slot? Usually, when the table is not very full.
+				if ( V == 0 ) return (N + j);	// look no further
+			}
+			return UINT32_MAX;  // this will be taken care of by a modulus in the caller
+		}
+
+		uint32_t _hop_scotch(HHash *T, uint32_t h) {  // return an index
+			uint32_t *buffer = _region_H;
+			uint32_t N = T->_max_n;
+			uint32_t K =  T->_neighbor;
+			for ( uint32_t i = (K - 1); i > 0; --i ) {
+				uint32_t hi = MOD(N + h - i, N);			// hop backwards towards the original hash position (h)...
+				uint32_t H = buffer[hi];
+				if ( (H != 0) && (((uint32_t)FFS(H)) < i) ) return i;	// count of trailing zeros less than offset from h
+			}
+			return 0;
+		}
+
+		uint64_t get_val_at_hh_hash(HHash *T, uint32_t h, uint32_t i) {
+			uint32_t offset = (h + i);		// offset from the hash position...
+			uint32_t N = T->_max_n;
+			uint32_t j = (offset % N);		// if wrapping around
+			return(_region_V[j]);			// return value
+		}
+
+
+		// SET OPERATION
+		// originailly called hunt for a set type...
+		uint64_t hunt_hash_set(HHash *T, uint32_t h, uint64_t k, bool kill) {
+			uint32_t i = _succ_hh_hash(T, h, 0);
+			while ( i != UINT32_MAX ) {
+				uint64_t x = get_val_at_hh_hash(T, h, i);  // get ith value matching this hash (collision)
+				if ( _cmp(k, x) ) {		// compare the discerning hash part of the values (in the case of map, hash of the stored value)
+					if (kill) del_hh_hash(T, h, i);
+					return x;
+				}
+				i = _succ_hh_hash(T, h, i + 1);  // increment i in some sense 
+			}
+			return 0;		// no value  (values will always be positive, perhaps a hash or'ed onto a 0 value)
+		}
+
+		// ---- ---- ---- ---- ---- ---- ----
+		bool _cmp(uint64_t k, uint64_t x) {
+//cout << "_cmp: k: " << k << " x: " << x << " ";
+			bool eq = ((HASH_MASK & k) == (HASH_MASK & x));
+//cout << "eq: " << eq << endl;
+			return(eq); // ????
+		}
+
+		bool put_hh_set(HHash *T, uint32_t h, uint64_t key_val) {
+			if ( key_val == 0 ) return 0;		// cannot store zero values
+			if ( get_hh_set(T, h, key_val) != 0 ) return (true);  // found, do not duplicate ... _cpm has been called
+			if ( put_hh_hash(T, h, key_val)) return (true); // success
+			// not implementing resize
+			return (false);
+		}
+
+
+		uint64_t get_hh_set(HHash *T, uint32_t hash, uint32_t key) {
+			uint64_t zero = 0;
+			uint64_t key_null = (zero | (uint64_t)key); // hopefully this explains it... 
+//cout << "get_hh_set: key_null: " << key_null << " hash: " << hash <<  endl;
+			bool flag_delete = false;
+			return hunt_hash_set(T, hash, key_null, flag_delete);
+		}
+		uint64_t del_hh_set(HHash *T, uint32_t hash, uint32_t key) { 
+			uint64_t zero = 0;
+			uint64_t key_null = (zero | (uint64_t)key); // hopefully this explains it... 
+			bool flag_delete = true;
+			return hunt_hash_set(T, hash, key_null, flag_delete); 
+		}
+
+		// note: not implementing resize since the size of the share segment is controlled by the application..
+
+		// MAP OPERATION
+
+		uint64_t put_hh_map(HHash *T, uint32_t hash_of_loaded, uint32_t index, uint32_t value) {
+			if ( value == 0 ) return false;
+//cout <<  " put_hh_map: loaded_value [value] " << value << " loaded_value [index] " << index;
+			uint64_t loaded_value = (((uint64_t)value) << HALF) | index;
+//cout << " loaded_value: " << loaded_value << endl;
+			bool put_ok = put_hh_set(T, hash_of_loaded, loaded_value);
+			if ( put_ok ) {
+				uint64_t loaded_key = (((uint64_t)index) << HALF) | hash_of_loaded; // LOADED
+				return(loaded_key);
+			} else {
+				return(UINT64_MAX);
+			}
+		}
+
+		uint32_t get_hh_map(HHash *T, uint64_t key) { 
+			 // UNLOADED
+			uint32_t element_diff = (uint32_t)((key >> HALF) & HASH_MASK);
+			uint32_t hash = (uint32_t)(key & HASH_MASK);
+//cout << "get_hh_map>> element_diff: " << element_diff << " hash: " << hash << " ";
+//cout << " _region_H[hash] " << _region_H[hash] << " _region_V[hash]  "  << _region_V[hash]  << endl;
+
+			return (uint32_t)(get_hh_set(T, hash, element_diff) >> HALF); 
+		}
+		uint32_t del_hh_map(HHash *T, uint64_t key) {
+			 // UNLOADED
+			uint32_t element_diff = (uint32_t)((key >> HALF) & HASH_MASK);
+			uint32_t hash = (uint32_t)(key & HASH_MASK);
+			return (uint32_t)(del_hh_set(T, hash, element_diff) >> HALF);
+		}
+
+		// ---- ---- ---- ---- ---- ---- ----
+		//
+		bool							_status;
+		bool							_initializer;
+		uint32_t						_max_count;
+		const char 						*_reason;
+		uint8_t		 					*_region;
+		uint32_t		 				*_region_H;
+		uint64_t		 				*_region_V;
+
+};
+
+
+namespace node {
+namespace node_shm {
+
+	/**
+	 * Setup a segment as a container of a hop scotch hash table
+	 * Params:
+	 *  key_t key
+	 */
+	NAN_METHOD(get_HH);
+
+}
+}
+
+
+#endif // _H_HOPSCOTCH_HASH_SHM_

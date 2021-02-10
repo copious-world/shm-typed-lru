@@ -18,7 +18,9 @@ For shm-type-array, please refer to:
 
 # Purpose
 
-This repository provides a simple LRU for fixed sized elements residing in shared memory. It make the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
+This node.js module provides a simple LRU for fixed sized elements residing in shared memory. It makes the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
+
+Optionally, this module provides Hop Scotch hashiing for associating data with LRU indecies. If the Hop Scotch hashiing is used, it is shared between attached processes. Modules do not have to communicate about the hashes. There is no locking however, so the application needs to provide any necessary locks and signals.
 
 (The author chose not to clone the original repository since there many changes to C++, and changing the C++ was more expedient than trying to manage separate stacks. In the future, this problem, not necessarily apparent to all the upstream repositories will be resolved.)
 
@@ -58,25 +60,31 @@ Here are the API's added in this repository:
 
 Given a key to a shared memory structure obtained by shm.create, this will create an LRU data structure in the shared memory region. The record size is new information not give to shm.create. The region size should be the same (see *count*). The basic communication use is for one process to be the master of the region. Call that process the initializer. Initialization creates data structurs. When *i\_am\_initializer* is set to false, the process using this module will read the existing data structures. 
 
-Within the library, each process will have a hash map (C++ unorderd_map) that maps hashes to the offsets (from the start of the shared block). Initialization sets up the map, which grows and shrinks as elements are added or removed. Prior to future work, these trees will need to be updated by processes that do not add new records, but that read the records. So, communication beyond this module will be required. (Future work: a shared hash map in fixed memory. Communication will still be required, but less.)
+Within the library, each process will have a hash map (C++ unorderd_map) that maps hashes to the offsets (from the start of the shared block). Initialization sets up the map, which grows and shrinks as elements are added or removed.
+
+Returns the number of elements that may be stored in the region.
 
 ### getSegmentSize(key)
 
 Given a key for a shared memory region, this returns the length of just that region.
 
-### set(key,hash,value)
+### lru\_max\_count(key)
 
-The application creates a hash key fitting UInt32. The key becomes the identifier for the stored value. The value should fit within the *record\_size* provided to initLRU.
+Given a key for a shared memory region initialized with initLRU, this returns the maximum number of elements of size *record\_size*. (good to use in initHopScotch)
+
+### set(key,value,hash,[index])
+
+The application creates a hash key fitting UInt32. The key becomes the identifier for the stored value. The value should fit within the *record\_size* provided to initLRU. An index, used to distinguish the element in case of a hash collision may be optionally passed. *index* defaults to zero.
 
 Returns: UInt32 offset to the element record. (Care should be taken when using the index versions of get, set, del.
 
-### get_el\_hash(key,hash)
+### get_el\_hash(key,hash,[index])
 
-Retuns the value previously stored in conjunction with the provided hash.
+Retuns the value previously stored in conjunction with the provided hash. If the element was stored with an index, the same index should be passed. 
 
-### del_key(key,hash)
+### del_key(key,hash,[index])
 
-Deletes the record (moves it to the free list), and removes the hash from  any hash map data structures governed by the module.
+Deletes the record (moves it to the free list), and removes the hash from  any hash map data structures governed by the module. If the element was stored with an index, the same index should be passed.
 
 ### get_el(key,index)
 
@@ -109,6 +117,10 @@ Access an element by index and sets its share_key for use in reloading hash maps
 ### debug\_dump\_list(key,backwards)
 
 This method dumps a JSON format of all the elements currently allocated in the LRU.
+
+### initHopScotch(key,lru_key,am_initializer,max_element_count)
+
+This method, **initHopSchotch**, initializes hopscotch hashing in a shared memory regions, identified by *key*. It associates the hash table with a previously allocated region intialied by **initLRU**. Use *lru_key*, the shared memory key for the LRU list so that the module may find the region. The parameter, *am_initializer*, tells the module if the regions should be initialized for the process or if it should be picked up (copying the header). There should be just one process that sets *am_initializer* to true. The max_element_count should be the same or bigger than the element count returned from the LRU methods, *lru\_max\_count* or *initLRU*. Having more is likey a good idea. Depending on how good your hash is, up to twice as much might be OK.
 
 # Cleanup
 This library does cleanup of created SHM segments only on normal exit of process, see [`exit` event](https://nodejs.org/api/process.html#process_event_exit).  

@@ -146,8 +146,14 @@ function getSegmentSize(key) {
 	return shm.getSegSize(key)
 }
 
-function set(key,hash,value) {
-	return shm.set_el(key,hash,value)
+function lru_max_count(key) {
+	return shm.max_count(key)
+}
+
+function set(key,value,hh_hash,index) {
+console.log("Set: ",hh_hash,index)
+	if ( index == undefined ) index = 0
+	return shm.set_el(key,hh_hash,index,value)
 }
 
 function get_el(key,index) {
@@ -155,8 +161,9 @@ function get_el(key,index) {
 }
 
 
-function get_el_hash(key,hash) {
-	return shm.get_el_hash(key,hash)
+function get_el_hash(key,hh_hash,index) {
+	if ( index == undefined ) index = 0
+	return shm.get_el_hash(key,hh_hash,index)
 }
 
 
@@ -164,8 +171,14 @@ function del_el(key,index) {
 	return shm.del_el(key,index)
 }
 
-function del_key(key,hash) {
-	return shm.del_key(key,hash)
+function del_key(key,hh_hash,index) {
+	if ( index == undefined ) index = 0
+	return shm.del_key(key,hh_hash,index)
+}
+
+function remove_key(key,hh_hash,index) {
+	if ( index == undefined ) index = 0
+	return shm.remove_key(key,hh_hash,index)
 }
 
 
@@ -197,6 +210,15 @@ function debug_dump_list(key,backwards) {
 	return shm.debug_dump_list(key,backwards)
 }
 
+// // // // // // // 
+function initHopScotch(key,lru_key,am_initializer,max_element_count) {
+	return shm.initHopScotch(key,lru_key,am_initializer,max_element_count)
+}
+
+
+
+// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
+
 //Exports
 module.exports.create = create;
 module.exports.get = get;
@@ -211,10 +233,12 @@ module.exports.LengthMax = lengthMax;
 //
 module.exports.initLRU = initLRU;
 module.exports.getSegmentSize = getSegmentSize;
+module.exports.lru_max_count = lru_max_count
 module.exports.set = set;
 module.exports.get_el = get_el;
 module.exports.del_el = del_el;
 module.exports.del_key = del_key;
+module.exports.remove_key = remove_key;
 module.exports.get_el_hash = get_el_hash;
 //
 module.exports.get_last_reason = get_last_reason;
@@ -225,4 +249,5 @@ module.exports.set_share_key = set_share_key;
 //
 module.exports.debug_dump_list = debug_dump_list;
 //
+module.exports.initHopScotch = initHopScotch
 

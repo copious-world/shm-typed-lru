@@ -1,6 +1,7 @@
 const cluster = require('cluster');
 const shm = require('../index.js');
 const assert = require('assert');
+const { profileEnd } = require('console');
 
 
 var buf, arr, arr2D2;
@@ -32,23 +33,46 @@ if (cluster.isMaster) {
 
 
 	arr2D2 =  shm.create(1000000); //1M bytes
-
-	let cache = shm.initLRU(arr2D2.key,250,10000)
-	console.log("CACHE: " + cache)
-	let cache2 = shm.initLRU(arr2D2.key,250,10000)
-	console.log("CACHE: " + cache2)
+	console.log("arr2D2.key: " + arr2D2.key)
+	let cache_count = shm.initLRU(arr2D2.key,250,100000)
+	console.log("CACHE count: " + cache_count)
+	let cache2 = shm.initLRU(arr2D2.key,250,100000)
+	console.log("CACHE count: " + cache2)
 	console.log("Segment Size: " + shm.getSegmentSize(arr2D2.key))
+
+
+	// // cache_count
+
+	let hh_table_2D2 =  shm.create(cache_count*24*10); //1M bytes
+	shm.initHopScotch(hh_table_2D2.key,arr2D2.key,true,cache_count*2)
+
+	///
+
+
+	console.log(" BEGIN HASH TEST ")
+
+	let el_diff = 0
 
 	let hash = 134
 	let el_data = "this is at test"
-	let el_id = shm.set(arr2D2.key,hash,el_data)
+	let el_id = shm.set(arr2D2.key,el_data,hash,el_diff++)
 	console.log("arr2D2 >> el_id: " + el_id)
+
+	console.log(" AFTER SET HASH TEST \n")
 
 	let value = shm.get_el(arr2D2.key,el_id)
 	console.log("arr2D2 >> value: " + value)
 
+	console.log(" AFTER GET INDEX TEST \n")
+
+	let first_tst_value = shm.get_el_hash(arr2D2.key,hash,el_diff-1)
+	console.log(`FIRST fetching after adding arr2D2 >> hash[${hash}]: value[${first_tst_value}]`)
+
+
+	console.log(" AFTER GET HASH TEST \n")
+	//process.exit(0);
 	el_data = "we test different this time"
-	el_id = shm.set(arr2D2.key,hash,el_data)
+	el_id = shm.set(arr2D2.key,el_data,hash,el_diff++)
 	console.log("arr2D2 >> el_id: " + el_id)
 
 	value = shm.get_el(arr2D2.key,el_id)
@@ -58,7 +82,7 @@ if (cluster.isMaster) {
 	let hash2 = 136
 
 	el_data = "we wolly gollies abren"
-	el_id = shm.set(arr2D2.key,hash2,el_data)
+	el_id = shm.set(arr2D2.key,el_data,hash2,el_diff++)
 	console.log("arr2D2 >> el_id: " + el_id)
 
 	value = shm.get_el(arr2D2.key,el_id)
@@ -75,14 +99,18 @@ if (cluster.isMaster) {
 	let hashes = []
 	for ( let i = 0; i < 10; i++ ) {
 		hash2++;
-		hashes.push(hash2)
+		el_diff++
+		hashes.push(`${hash2}-${el_diff}`)
 		el_data = `GEEE ${i} wolly gollies abren`
-		shm.set(arr2D2.key,hash2,el_data)
+		shm.set(arr2D2.key,el_data,hash2,el_diff)
 	}
 
 	hashes.forEach(hsh => {
-		value = shm.get_el_hash(arr2D2.key,hsh)
-		console.log(`fetching after adding arr2D2 >> hash[${hsh}]: value[${value}]`)
+		let pair = hsh.split('-')
+		let hash = parseInt(pair[0])
+		let index = parseInt(pair[1])
+		let tst_value = shm.get_el_hash(arr2D2.key,hash,index)
+		console.log(`fetching after adding arr2D2 >> hash[${hash}]: value[${tst_value}]`)
 	})
 
 	shm.debug_dump_list(arr2D2.key)
@@ -92,8 +120,11 @@ if (cluster.isMaster) {
 		let j = Math.floor(Math.random()*n);
 		//
 		let tst_hash = hashes[j]
+		let pair = tst_hash.split('-')
+		let hash = parseInt(pair[0])
+		let index = parseInt(pair[1])
 		console.log(tst_hash)
-		let tst_value = shm.get_el_hash(arr2D2.key,tst_hash)
+		let tst_value = shm.get_el_hash(arr2D2.key,hash,index)
 		console.log(`fetching after adding arr2D2 >> hash[${tst_hash}]: value[${tst_value}]`)
 	}
 
@@ -119,7 +150,9 @@ if (cluster.isMaster) {
 			let message = {
 				'msg'		: 'lru',
 				'bufKey'	: arr2D2.key,
-				'hashList'	: hash_str
+				'hhKey'		: hh_table_2D2.key,
+				'hashList'	: hash_str,
+				'el_count'  : cache_count*2
 			}
 			worker.send(message)
 			setTimeout(() => {
@@ -128,19 +161,28 @@ if (cluster.isMaster) {
 				//
 				let el_hash = hashes[j]
 				console.log(el_hash)
-				if ( shm.del_key(arr2D2.key,el_hash) === true ) {
+				let pair = el_hash.split('-')
+				let hash = parseInt(pair[0])
+				let index = parseInt(pair[1])
+				if ( shm.del_key(arr2D2.key,hash,index) === true ) {
 					console.log(`deleted ${el_hash}`)
 				}
 				j = Math.floor(Math.random()*n);
 				el_hash = hashes[j]
 				console.log(el_hash)
-				if ( shm.del_key(arr2D2.key,el_hash) === true ) {
+				pair = el_hash.split('-')
+				hash = parseInt(pair[0])
+				index = parseInt(pair[1])
+				if ( shm.del_key(arr2D2.key,hash,index) === true ) {
 					console.log(`deleted ${el_hash}`)
 				}
 				j = Math.floor(Math.random()*n);
 				el_hash = hashes[j]
 				console.log(el_hash)
-				if ( shm.del_key(arr2D2.key,el_hash) === true ) {
+				pair = el_hash.split('-')
+				hash = parseInt(pair[0])
+				index = parseInt(pair[1])
+				if ( shm.del_key(arr2D2.key,hash,index) === true ) {
 					console.log(`deleted ${el_hash}`)
 				}
 				//
@@ -187,26 +229,41 @@ if (cluster.isMaster) {
 				}
 			}, 500);
 		} else if ( msg == 'lru' ) {
-
-			let key = data.bufKey;
+			let lru_key = data.bufKey;
+			let hh_key = data.hhKey;
+			let el_count = data.el_count
 			let hashes = JSON.parse(data.hashList)
-			shm.get(key);
-			shm.initLRU(key,250,10000,false)
+			//
+			shm.get(lru_key);
+			shm.get(hh_key);
+			shm.initLRU(lru_key,250,10000,false)
+			shm.initHopScotch(hh_key,lru_key,false,el_count)
+
 
 			hashes.forEach( hsh => {
-				value = shm.get_el_hash(key,hsh)
+				let pair = hsh.split('-')
+				let hash = parseInt(pair[0])
+				let index = parseInt(pair[1])
+				value = shm.get_el_hash(lru_key,hash,index)
 				if ( value == -2 ) {
-					let raison = shm.get_last_reason(key)
+					let raison = shm.get_last_reason(lru_key)
 					console.log(raison)
 				}
 				console.log(`CHILD arr2D2 >> hash[${hsh}]: value[${value}]`)		
-			})	
+			})
+
+			// //
+			//
+
 		} else if ( msg == 'lru-reload' ) {
 			let key = data.bufKey;
 			shm.reload_hash_map(key)
 			let hashes = JSON.parse(data.hashList)
 			hashes.forEach( hsh => {
-				value = shm.get_el_hash(key,hsh)
+				let pair = hsh.split('-')
+				let hash = parseInt(pair[0])
+				let index = parseInt(pair[1])
+				value = shm.get_el_hash(key,hash,index)
 				if ( value == -2 ) {
 					let raison = shm.get_last_reason(key)
 					console.log(raison)
