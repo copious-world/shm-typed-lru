@@ -1,15 +1,28 @@
-#include "node.h"
-#include "node_buffer.h"
-#include "v8.h"
-#include "nan.h"
-#include "errno.h"
+#include <node.h>
+#include <node_buffer.h>
+#include <v8.h>
+#include <nan.h>
+#include <errno.h>
 
+
+#include <unistd.h>
 #include <sys/ipc.h>
 #include <sys/types.h>
 #include <sys/shm.h>
+#include <semaphore.h>
+#include <assert.h>
+#include <signal.h>
+#include <pthread.h>
+
 
 #include <iostream>
 #include <sstream>
+
+
+#ifndef _POSIX_THREAD_PROCESS_SHARED
+#warning This system does not support process shared mutex -- alternative method will be used
+#endif
+
 
 using namespace node;
 using namespace v8;
@@ -23,6 +36,116 @@ using namespace std;
 #include "node_shm_HH.h"
 #include "node_shm_LRU.h"
 
+class MutexHolder {
+	public:
+		//
+		MutexHolder(void *mem_ptr,bool am_initializer) {
+			_mutex_ptr = nullptr;
+			_status = true;
+			if ( am_initializer ) {
+				this->init_mutex(mem_ptr);
+			} else {
+				_mutex_ptr = (pthread_mutex_t *)(mem_ptr);
+			}
+		}
+
+		void init_mutex(void *mutex_mem) {
+			//
+			_mutex_ptr = (pthread_mutex_t *)mutex_mem;
+			//
+			int result = pthread_mutexattr_init(&_mutex_attributes);
+			if ( result != 0 ) {
+				_status = false;
+				_last_reason = "pthreas_mutexattr_init: ";
+				_last_reason = strerror(result);
+				return;
+			}
+			result = pthread_mutexattr_setpshared(&_mutex_attributes,PTHREAD_PROCESS_SHARED);
+			if ( result != 0 ) {
+				_status = false;
+				_last_reason = "pthread_mutexattr_setpshared: ";
+				_last_reason = strerror(result);
+				return;
+			}
+
+			result = pthread_mutex_init(_mutex_ptr, &_mutex_attributes);
+			if ( result != 0 ) {
+				_status = false;
+				_last_reason = "pthread_mutex_init: ";
+				_last_reason = strerror(result);
+				return;
+			}
+			//
+		}
+
+		bool try_lock() {
+			if ( _mutex_ptr == nullptr ) {
+				return(false);
+			}
+			 int result = pthread_mutex_lock( _mutex_ptr );
+			 if ( result == EBUSY ) {
+				 _status = true;
+				 return(false);
+			 }
+			if ( result != 0 ) {
+				_status = false;
+				_last_reason = "pthread_mutex_lock: ";
+				_last_reason = strerror(result);
+				return (false);
+			}
+			return(true);
+		}
+
+		bool lock() {
+			if ( _mutex_ptr == nullptr ) {
+				return(false);
+			}
+			int result = pthread_mutex_lock( _mutex_ptr );
+			if ( result != 0 ) {
+				_status = false;
+				_last_reason = "pthread_mutex_lock: ";
+				_last_reason = strerror(result);
+				return (false);
+			}
+			return(true);
+		}
+
+		bool unlock() {
+			if ( _mutex_ptr == nullptr ) {
+				return(false);
+			}
+			 int result = pthread_mutex_unlock( _mutex_ptr );
+			if ( result != 0 ) {
+				_status = false;
+				_last_reason = "pthread_mutex_lock: ";
+				_last_reason = strerror(result);
+				return (false);
+			}
+			return(true);
+		}
+
+
+		/// status ---- ---- ---- ---- ---- ---- ---- ----
+
+		//
+		bool ok(void) {
+			return _status;
+		}
+
+		string get_last_reason(void) {
+			if ( _status ) return("OK");
+			string report = _last_reason;
+			_last_reason = "OK";
+			_status = true;
+			return report;
+		}
+
+		// 
+		pthread_mutex_t		*_mutex_ptr;
+		pthread_mutexattr_t	_mutex_attributes;
+		bool				_status;
+		string				_last_reason;
+};
 
 /*
 namespace imp {
@@ -122,6 +245,7 @@ namespace Nan {
 namespace node {
 namespace node_shm {
 
+	// SHM   ----  ----  ----  ----  ----  ----  ----
 	/**
 	 * Create or get shared memory
 	 * Params:
@@ -167,6 +291,9 @@ namespace node_shm {
 	 *  SHMBT_FLOAT32, SHMBT_FLOAT64
 	 */
 
+	// LRU -   ----  ----  ----  ----  ----  ----  ----
+	//	hash default or Hop Scotch
+
 	/**
 	 * Setup LRU data structure on top of the shared memory
 	 */
@@ -180,7 +307,6 @@ namespace node_shm {
 	 * get Mac Element count of a segment (pass this to initHopScotch)
 	 */
 	NAN_METHOD(	getMaxCount);
-
 
 	/**
 	 * add hash key and value
@@ -230,16 +356,41 @@ namespace node_shm {
 	 */
 	NAN_METHOD(run_lru_eviction);
 
-
 	NAN_METHOD(debug_dump_list);
 
 
-
+	// HOPSCOTCH  ----  ----  ----  ----  ----
 	/**
 	 * Setup LRU data structure on top of the shared memory
 	 */
 	NAN_METHOD(initHopScotch);
 
+
+	// MUTEX  ----  ----  ----  ----  ----  ----
+	/**
+	 * Assign a memory section for a MUTEX
+	 */
+	NAN_METHOD(init_mutex);
+
+	/**
+	 * Get access to the semaphore identified by a key
+	 */
+	NAN_METHOD(init_mutex);
+
+	/**
+	 * 	Wrap try_wait ... try_lock  ... will return if the lock is busy...
+	 */
+	NAN_METHOD(try_lock);
+
+	/**
+	 * 	Wrap lock  ... queue up for the lock...
+	 */
+	NAN_METHOD(lock);
+
+	/**
+	 *  Release the lock
+	 */
+	NAN_METHOD(unlock);
 
 }
 }

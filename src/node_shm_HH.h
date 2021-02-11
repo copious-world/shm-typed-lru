@@ -252,7 +252,7 @@ class HH_map : public HMap_interface {
 			}
 			//
 			  // wrap... start searching from the start of all data...
-			for ( uint32_t j = 0; j < h != 0; ++j ) {
+			for ( uint32_t j = 0; j < h ; ++j ) {
 				uint64_t V = v_buffer[j];	// is this an empty slot? Usually, when the table is not very full.
 				if ( V == 0 ) return (N + j);	// look no further
 			}

@@ -152,6 +152,8 @@ namespace node_shm {
 	map<key_t,LRU_cache *>  g_LRU_caches_per_segment;
 	map<key_t,HH_map *>  g_HMAP_caches_per_segment;
 	map<int,size_t> g_ids_to_seg_sizes;
+	map<key_t,MutexHolder *> g_MUTEX_per_segment;
+
 
 
 	// Arrays to keep info about created segments, call it "info ararys"
@@ -900,6 +902,146 @@ namespace node_shm {
 	}
 
 
+	// MUTEX
+
+	// fixed size data elements 
+	NAN_METHOD(init_mutex) {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		bool am_initializer = Nan::To<bool>(info[3]).FromJust();
+		//
+		int resId = shmget(key, 0, 0);
+		if (resId == -1) {
+			switch(errno) {
+				case ENOENT: // not exists
+				case EIDRM:  // scheduled for deletion
+					info.GetReturnValue().Set(Nan::New<Number>(-1));
+					return;
+				default:
+					return Nan::ThrowError(strerror(errno));
+			}
+		}
+		
+		MutexHolder *mtx = g_MUTEX_per_segment[key];
+		//
+		if ( hasShmSegmentInfo(resId) ) {
+			if ( mtx != nullptr ) {
+				// just say that access through the key is possible
+				info.GetReturnValue().Set(Nan::New<Boolean>(true));
+			} else {
+				// setup the access
+				void *region = getShmSegmentAddr(resId);
+				if ( region == nullptr ) {
+					info.GetReturnValue().Set(Nan::New<Number>(-1));
+					return;
+				}
+				//
+				mtx = new MutexHolder(region,am_initializer);
+
+				if ( mtx->ok() ) {
+					g_MUTEX_per_segment[key] = mtx;
+					info.GetReturnValue().Set(Nan::New<Boolean>(true));
+				} else {
+					string throw_message = mtx->get_last_reason();
+					return Nan::ThrowError(throw_message.c_str());
+				}
+			}
+		} else {
+			if ( mtx != nullptr ) {
+				g_MUTEX_per_segment.erase(key);
+			}
+			info.GetReturnValue().Set(Nan::New<Number>(-1));
+		}
+	}
+
+
+	NAN_METHOD(get_last_mutex_reason)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		//
+		MutexHolder *mtx = g_MUTEX_per_segment[key];
+		if ( mtx == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			string mtx_reason = mtx->get_last_reason();
+			const char *reason = mtx_reason.c_str();
+			info.GetReturnValue().Set(New(reason).ToLocalChecked());
+		}
+	}
+
+
+
+	NAN_METHOD(try_lock)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		//
+		MutexHolder *mtx = g_MUTEX_per_segment[key];
+		if ( mtx == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Number>(-3));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			if ( mtx->try_lock() ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(true));
+			}
+			if ( mtx->ok() ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		}
+	}
+
+
+	NAN_METHOD(lock)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		//
+		MutexHolder *mtx = g_MUTEX_per_segment[key];
+		if ( mtx == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Number>(-3));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			if ( mtx->lock() ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(true));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			}
+		}
+	}
+
+
+
+	NAN_METHOD(unlock)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		//
+		MutexHolder *mtx = g_MUTEX_per_segment[key];
+		if ( mtx == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Number>(-3));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			if ( mtx->unlock() ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(true));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			}
+		}
+	}
+
+
 	// Init module
 	static void Init(Local<Object> target) {
 		initShmSegmentsInfo();
@@ -930,7 +1072,17 @@ namespace node_shm {
 		//
 		// HOPSCOTCH HASH
 		Nan::SetMethod(target, "initHopScotch", initHopScotch);
+
+		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
+
+		Nan::SetMethod(target, "init_mutex", init_mutex);
+		Nan::SetMethod(target, "try_lock", try_lock);
+		Nan::SetMethod(target, "lock", lock);
+		Nan::SetMethod(target, "unlock", unlock);
+		Nan::SetMethod(target, "get_last_mutex_reason", get_last_mutex_reason);
 		
+
+
 		//
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::Set(target, Nan::New("IPC_PRIVATE").ToLocalChecked(), Nan::New<Number>(IPC_PRIVATE));
