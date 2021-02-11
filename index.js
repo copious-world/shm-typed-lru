@@ -219,6 +219,29 @@ function initHopScotch(key,lru_key,am_initializer,max_element_count) {
 
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 
+function init_mutex(key,initializer) {
+	return shm.init_mutex(key,initializer)
+}
+
+function try_lock(key) {
+	return shm.try_lock(key)
+}
+
+function lock(key) {
+	return shm.lock(key)
+}
+
+function unlock(key) {
+	return shm.unlock(key)
+}
+
+function get_last_mutex_reason(key) {
+	return shm.get_last_mutex_reason(key)
+}
+
+
+// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
+
 //Exports
 module.exports.create = create;
 module.exports.get = get;
@@ -250,4 +273,9 @@ module.exports.set_share_key = set_share_key;
 module.exports.debug_dump_list = debug_dump_list;
 //
 module.exports.initHopScotch = initHopScotch
-
+//
+module.exports.init_mutex = init_mutex
+module.exports.try_lock = try_lock
+module.exports.lock = lock
+module.exports.unlock = unlock
+module.exports.get_last_mutex_reason = get_last_mutex_reason

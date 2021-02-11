@@ -1080,9 +1080,7 @@ namespace node_shm {
 		Nan::SetMethod(target, "lock", lock);
 		Nan::SetMethod(target, "unlock", unlock);
 		Nan::SetMethod(target, "get_last_mutex_reason", get_last_mutex_reason);
-		
-
-
+	
 		//
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::Set(target, Nan::New("IPC_PRIVATE").ToLocalChecked(), Nan::New<Number>(IPC_PRIVATE));
