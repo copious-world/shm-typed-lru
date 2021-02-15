@@ -908,7 +908,7 @@ namespace node_shm {
 	NAN_METHOD(init_mutex) {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		bool am_initializer = Nan::To<bool>(info[3]).FromJust();
+		bool am_initializer = Nan::To<bool>(info[1]).FromJust();
 		//
 		int resId = shmget(key, 0, 0);
 		if (resId == -1) {

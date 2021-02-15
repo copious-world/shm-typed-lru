@@ -57,14 +57,14 @@ class MutexHolder {
 			if ( result != 0 ) {
 				_status = false;
 				_last_reason = "pthreas_mutexattr_init: ";
-				_last_reason = strerror(result);
+				_last_reason += strerror(result);
 				return;
 			}
 			result = pthread_mutexattr_setpshared(&_mutex_attributes,PTHREAD_PROCESS_SHARED);
 			if ( result != 0 ) {
 				_status = false;
 				_last_reason = "pthread_mutexattr_setpshared: ";
-				_last_reason = strerror(result);
+				_last_reason += strerror(result);
 				return;
 			}
 
@@ -72,7 +72,7 @@ class MutexHolder {
 			if ( result != 0 ) {
 				_status = false;
 				_last_reason = "pthread_mutex_init: ";
-				_last_reason = strerror(result);
+				_last_reason += strerror(result);
 				return;
 			}
 			//
@@ -82,15 +82,15 @@ class MutexHolder {
 			if ( _mutex_ptr == nullptr ) {
 				return(false);
 			}
-			 int result = pthread_mutex_lock( _mutex_ptr );
+			 int result = pthread_mutex_trylock( _mutex_ptr );
 			 if ( result == EBUSY ) {
 				 _status = true;
 				 return(false);
 			 }
 			if ( result != 0 ) {
 				_status = false;
-				_last_reason = "pthread_mutex_lock: ";
-				_last_reason = strerror(result);
+				_last_reason = "pthread_mutex_trylock: ";
+				_last_reason += strerror(result);
 				return (false);
 			}
 			return(true);
@@ -104,7 +104,7 @@ class MutexHolder {
 			if ( result != 0 ) {
 				_status = false;
 				_last_reason = "pthread_mutex_lock: ";
-				_last_reason = strerror(result);
+				_last_reason += strerror(result);
 				return (false);
 			}
 			return(true);
@@ -118,7 +118,7 @@ class MutexHolder {
 			if ( result != 0 ) {
 				_status = false;
 				_last_reason = "pthread_mutex_lock: ";
-				_last_reason = strerror(result);
+				_last_reason += strerror(result);
 				return (false);
 			}
 			return(true);
