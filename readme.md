@@ -20,7 +20,7 @@ For shm-type-array, please refer to:
 
 This node.js module provides a simple LRU for fixed sized elements residing in shared memory. It makes the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
 
-Optionally, this module provides Hop Scotch hashiing for associating data with LRU indecies. If the Hop Scotch hashiing is used, it is shared between attached processes. Modules do not have to communicate about the hashes. There is no locking however, so the application needs to provide any necessary locks and signals.
+Optionally, this module provides Hop Scotch hashing for associating data with LRU indecies. If the Hop Scotch hashing is used, it is shared between attached processes. Modules do not have to communicate about the hashes. There is no locking however, so the application needs to provide any necessary locks and signals.
 
 (The author chose not to clone the original repository since there many changes to C++, and changing the C++ was more expedient than trying to manage separate stacks. In the future, this problem, not necessarily apparent to all the upstream repositories will be resolved.)
 
