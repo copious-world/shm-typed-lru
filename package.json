@@ -1,6 +1,6 @@
 {
   "name": "shm-typed-lru",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "LRU shared memory list build on top of shm-type-array.",
   "main": "index.js",
   "repository": {
