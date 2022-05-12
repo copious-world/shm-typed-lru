@@ -34,7 +34,8 @@
   },
   "license": "MIT",
   "dependencies": {
-    "nan": "^2.13.2"
+    "nan": "^2.15.0",
+    "shm-typed-lru": "link:"
   },
   "os": [
     "!win32"
@@ -47,7 +48,8 @@
   },
   "homepage": "https://github.com/copious-world/shm-typed-lru",
   "scripts": {
-    "install": "node-gyp configure && node-gyp rebuild",
+    "gyp-install": "node-gyp configure && node-gyp rebuild",
+    "install": "cmake-js compile",
     "test": "node test/example.js"
   },
   "devDependencies": {
