@@ -7,6 +7,7 @@ namespace node {
 namespace Buffer {
 
 	using v8::ArrayBuffer;
+	using v8::SharedArrayBuffer;
 	using v8::ArrayBufferCreationMode;
 	using v8::EscapableHandleScope;
 	using node::AddEnvironmentCleanupHook;
@@ -51,12 +52,15 @@ namespace Buffer {
 		MaybeLocal<Object> mlarr = node::Buffer::New(
 			isolate, data, length, callback, hint);
 		Local<Object> larr = mlarr.ToLocalChecked();
+		
 		Uint8Array* arr = (Uint8Array*) *larr;
 		Local<ArrayBuffer> ab = arr->Buffer();
 		*/
+		//Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, data, length, ArrayBufferCreationMode::kExternalized);
 
-		Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, data, length, 
-			ArrayBufferCreationMode::kExternalized);
+		std::shared_ptr<v8::BackingStore> backing = v8::SharedArrayBuffer::NewBackingStore(data, length, 
+																						[](void*, size_t, void*){}, nullptr);
+		Local<SharedArrayBuffer> ab = v8::SharedArrayBuffer::New(isolate, std::move(backing));
 		
 		Local<Object> ui;
 		switch(type) {

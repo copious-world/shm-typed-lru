@@ -7,9 +7,10 @@ const { profileEnd } = require('console');
 var buf, arr, arr2D2;
 if (cluster.isMaster) {
 	// Assert that creating shm with same key twice will fail
-	var key = 1234567890;
-	var a = shm.create(10, 'Float32Array', key);
+	let key = 1234567890;
+	let a = shm.create(10, 'Float32Array', key);
 	var b = shm.create(10, 'Float32Array', key);
+	//
 	assert(a instanceof Float32Array);
 	assert(a.key == key);
 	assert(b === null);
