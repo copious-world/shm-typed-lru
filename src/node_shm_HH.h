@@ -73,6 +73,7 @@ class HH_map : public HMap_interface {
 			_max_count = max_element_count;
 			uint8_t sz = sizeof(HHash);
 			uint8_t header_size = (sz  + (sz % sizeof(uint32_t)));
+			// initialize from constructor
 			this->setup_region(am_initializer,header_size,max_element_count);
 		}
 
@@ -173,6 +174,11 @@ class HH_map : public HMap_interface {
 			T->_count--;
 		}
 
+		// put_hh_hash
+		// Given a hash and a value, find a place for storing this pair
+		// (If the buffer is nearly full, this can take considerable time)
+		// Attempt to keep things organized in buckets, indexed by the hash module the number of elements
+		//
 		bool put_hh_hash(HHash *T, uint32_t h, uint64_t v) {
 			uint32_t N = T->_max_n;
 			if ( (T->_count == N) || (v == 0) ) return(false);  // FULL
@@ -184,7 +190,7 @@ class HH_map : public HMap_interface {
 			uint32_t K =  T->_neighbor;
 			while ( d >= K ) {						// the number may be bigger than K. if wrapping, then bigger than N. 2N < UINT32_MAX.
 				uint32_t hd = MOD( (h + d), N );	// d is allowed to wrap around.
-				uint32_t z = _hop_scotch(T, hd);		// hop scotch back to a moveable positions
+				uint32_t z = _hop_scotch(T, hd);	// hop scotch back to a moveable positions
 	//cout << " put_hh_hash: z> " << z;
 				if ( z == 0 ) return(false);			// could not find anything that could move. (Frozen at this point..)
 				// found a position that can be moved... (offset from h <= d closer to the neighborhood)
@@ -246,17 +252,21 @@ class HH_map : public HMap_interface {
 			v_buffer[j] = v;
 		}
 
+		// _probe -- search for a free space within a bucket
+		//		h : the bucket starts at h (an offset in _region_V)
 		uint32_t _probe(HHash *T, uint32_t h) {   // value probe ... looking for zero
 			uint64_t *v_buffer = _region_V;
 			// // 
-			uint32_t N = T->_max_n;
+			uint32_t N = T->_max_n;		// upper bound (count of elements in buffer)
 			//
+			// search in the bucket
 			for ( uint32_t i = 0; (h + i) < N; ++i ) {			// search forward to the end of the array (all the way even it its millions.)
 				uint64_t V = v_buffer[h + i];	// is this an empty slot? Usually, when the table is not very full.
 				if ( V == 0 ) return i;			// look no further
 			}
 			//
-			  // wrap... start searching from the start of all data...
+			// look for anything starting at the beginning of the segment
+			// wrap... start searching from the start of all data...
 			for ( uint32_t j = 0; j < h ; ++j ) {
 				uint64_t V = v_buffer[j];	// is this an empty slot? Usually, when the table is not very full.
 				if ( V == 0 ) return (N + j);	// look no further

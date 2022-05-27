@@ -151,7 +151,7 @@ function lru_max_count(key) {
 }
 
 function set(key,value,hh_hash,index) {
-console.log("Set: ",hh_hash,index)
+//console.log("Set: ",hh_hash,index)
 	if ( index == undefined ) index = 0
 	return shm.set_el(key,hh_hash,index,value)
 }

@@ -125,6 +125,22 @@ class LRU_cache {
 		}
 
 		// add_el
+		// 		data -- data that will be stored at the end of the free list
+		//		hash64 -- a large hash of the data. The hash will be processed for use in the hash table.
+		//	The hash table will provide reverse lookup for the new element being added by allocating from the free list.
+		//	The hash table stores the index of the element in the managed memory. 
+		// 	So, to retrieve the element later, the hash will fetch the offset of the element in managed memory
+		//	and then the element will be retrieved from its loction.
+		//	The number of elements in the free list may be the same or much less than the number of hash table elements,
+		//	the hash table can be kept sparse as a result, keeping its operation fairly efficient.
+		//	-- The add_el method can tell that it has no more room for elements by looking at the free list.
+		//	-- When the free list is empty, add_el returns UINT32_MAX. When the free list is empty,
+		//	-- some applications may want to extend share memory by adding more hash slabs or by enlisting secondary processors, 
+		//	-- or by running evictions on the tail of the list of allocated elements.
+		//	Given there is a free slot for the element, add_el puts the elements offset into the hash table.
+		//	add_el moves the element from the free list to the list of allocated positions. These are doubly linked lists.
+		//	Each element of the list as a time of insertion, which add_el records.
+		//
 		 uint32_t add_el(char *data,uint64_t hash64) {
 			//
 			uint8_t *start = _region;
@@ -231,7 +247,7 @@ class LRU_cache {
 
 		// HASH TABLE USAGE
 		void remove_key(uint64_t hash) {
-			if ( _hmap_i == nullptr ) {
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				_local_hash_table.erase(hash);
 			} else {
 				_hmap_i->del(hash);
@@ -239,7 +255,7 @@ class LRU_cache {
 		}
 
 		void clear_hash_table(void) {
-			if ( _hmap_i == nullptr ) {
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				_local_hash_table.clear();
 			} else {
 				_hmap_i->clear();
@@ -248,7 +264,7 @@ class LRU_cache {
 		}
 
 		void store_in_hash(uint64_t key64,uint32_t new_el_offset) {
-			if ( _hmap_i == nullptr ) {
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				_local_hash_table[key64] = new_el_offset;
 			} else {
 				//uint64_t result =  
@@ -260,7 +276,7 @@ class LRU_cache {
 
 		// check_for_hash
 		uint32_t check_for_hash(uint64_t key) {
-			if ( _hmap_i == nullptr ) {
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				if ( _local_hash_table.find(key) != _local_hash_table.end() ) {
 					return(_local_hash_table[key]);
 				}
@@ -451,14 +467,14 @@ class LRU_cache {
 		}
 
 		void _add_map(LRU_element *el,uint32_t offset) {
-			if ( _hmap_i == nullptr ) {
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				uint64_t hash = el->_hash;
 				this->store_in_hash(hash,offset);
 			}
 		}
 
 		void _add_map_filtered(LRU_element *el,uint32_t offset) {
-			if ( _hmap_i == nullptr ) {
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				if ( _share_key == el->_share_key ) {
 					uint64_t hash = el->_hash;
 					this->store_in_hash(hash,offset);

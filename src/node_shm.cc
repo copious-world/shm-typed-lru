@@ -616,6 +616,8 @@ namespace node_shm {
 	}
 
 
+	// set el -- add a new entry to the LRU.  IF the LRU is full, return indicative value.
+	//
 	NAN_METHOD(set_el)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
@@ -624,12 +626,11 @@ namespace node_shm {
 		Utf8String data_arg(info[3]);
 		//
 		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
-//cout << "set_el h> " << hash << " i> " << index << " " << hash64 << endl;
-
 		//
 
+		// First check to see if a buffer was every allocated
 		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
-		if ( lru_cache == nullptr ) {
+		if ( lru_cache == nullptr ) {		// buffer was not set yield an error
 			if ( shmCheckKey(key) ) {
 				info.GetReturnValue().Set(Nan::New<Boolean>(false));
 			} else {
@@ -637,11 +638,13 @@ namespace node_shm {
 			}
 		} else {
 			char *data = *data_arg;
-			 uint32_t offset = lru_cache->check_for_hash(hash64);
-			if ( offset == UINT32_MAX ) {
+			// is the key already assigned ?  >> check_for_hash 
+			uint32_t offset = lru_cache->check_for_hash(hash64);
+			if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
 				uint32_t offset = lru_cache->add_el(data,hash64);
 				info.GetReturnValue().Set(Nan::New<Number>(offset));
 			} else {
+				// there is already data -- so attempt ot update the element with new data.
 				if ( lru_cache->update_el(offset,data) ) {
 					info.GetReturnValue().Set(Nan::New<Number>(offset));
 				} else {
