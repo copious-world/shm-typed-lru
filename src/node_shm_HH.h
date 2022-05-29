@@ -30,7 +30,7 @@ using namespace std;
 // Bringing in code from libhhash  // until further changes...
 
 
-#define WORD  (8*sizeof(uint32_t))
+#define WORD  (8*sizeof(uint32_t))		// 32 bits
 #define MOD(x, n) ((x) < (n) ? (x) : (x) - (n))
 //
 template<typename T>
@@ -40,7 +40,7 @@ inline T CLZ(T x) {		// count leading zeros -- make sure it is not bigger than t
 }
 
 #define FFS(x) (__builtin_ctzl(x))				// count trailing zeros (First Free Space in neighborhood)
-#define FLS(x) WORD // (WORD - CLZ(x))					// number bits possible less leading zeros (limits the space of the neigborhood)
+#define FLS(x) WORD // (WORD - CLZ(x))			// number bits possible less leading zeros (limits the space of the neigborhood)
 #define GET(hh, i) ((hh) & (1L << (i)))			// ith bit returned   (hh for hash home)
 #define SET(hh, i) (hh = (hh) | (1L << (i)))	// or in ith bit (ith bit set - rest 0)
 #define UNSET(hh, i) (hh = (hh) & ~(1L << (i)))	// and with ith bit 0 - rest 1 (think of as mask)
@@ -53,9 +53,9 @@ const uint64_t HASH_MASK = (((uint64_t)0) | ~(uint32_t)(0));  // 32 bits
 typedef unsigned long ulong;
 
 typedef struct HHASH {
-  uint32_t _neighbor;
-  uint32_t _count;
-  uint32_t _max_n;
+  uint32_t _neighbor;		// Number of elements in a neighborhood
+  uint32_t _count;			// count of elements contained an any time
+  uint32_t _max_n;			// max elements that can be container
 } HHash;
 
 

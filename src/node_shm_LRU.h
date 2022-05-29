@@ -1,6 +1,8 @@
 #ifndef _H_HOPSCOTCH_HASH_LRU_
 #define _H_HOPSCOTCH_HASH_LRU_
 
+// node_shm_LRU.h
+
 #include "errno.h"
 
 #include <sys/ipc.h>

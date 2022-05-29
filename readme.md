@@ -13,37 +13,86 @@ For shm-type-array, please refer to:
   }
 ```
 
-##### shm-type-lru tests and npm (coming soon)
+##### shm-typed-lru tests and npm (coming soon)
 
 
 # Purpose
 
-This node.js module provides a simple LRU for fixed sized elements residing in shared memory. It makes the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
+This node.js module provides a simple LRU for **fixed sized elements** residing in shared memory. It makes the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
 
-Optionally, this module provides Hop Scotch hashing for associating data with LRU indecies. If the Hop Scotch hashing is used, it is shared between attached processes. Modules do not have to communicate about the hashes. There is no locking however, so the application needs to provide any necessary locks and signals.
+Optionally, this module provides Hopscotch hashing for associating data with LRU indecies. If the Hopscotch hashing is used, it is shared between attached processes. Modules do not have to communicate about the hashes. There is no locking however, so the application needs to provide any necessary locks and signals.
 
 (The author chose not to clone the original repository since there many changes to C++, and changing the C++ was more expedient than trying to manage separate stacks. In the future, this problem, not necessarily apparent to all the upstream repositories will be resolved.)
 
->>The module, shared-typed-array was written to manage a collection of shared memory regions. Application s of shared-typed-lru may make use of that to enhance communication. Or, more than one LRU may be managed for different record sizes.
+>>The module, shared-typed-array was written to manage a collection of shared memory regions. Applications of shared-typed-lru may make use of that to enhance communication. Or, more than one LRU may be managed for different record sizes.
   
 # Install
+
+*This module is using cmake-js for its C++ build.*
+
+So, the following modules should be installed in order to build this module:
+
+```
+npm install nan -g
+npm install cmake-js -g
+```
+
+
+After those modules are installed, this installation should go smoothly:
 
 ``` bash
 $ npm install shm-typed-lru
 $ npm test
 ```
+
 Manual build:
+
 ``` bash
-node-gyp configure
-node-gyp build
+cmake-js compile
 node test/example.js
 ```
 Windows is not supported.
 
+## General Usage
 
-# API
+For any operations to take place on shared memory, the application program must first create a shared memory segment by calling the **create** method. Only one process should do this. In otherwords appoint a process as the manager (master of cerimonies).
 
-For the following API's please read the description at this repository:
+Here is an example from shm-lru-cache:
+
+```
+        if ( this.initializer ) {
+            let sz = ((this.count*this.record_size) + LRU_HEADER)
+            this.lru_buffer =  shm.create(sz);
+            this.lru_key = this.lru_buffer.key
+            this.count = shm.initLRU(this.lru_key,this.record_size,sz,true)
+            //
+            sz = (2*this.count*(WORD_SIZE + LONG_WORD_SIZE) + HH_HEADER_SIZE)
+            this.hh_bufer = shm.create(sz); 
+            this.hh_key = this.hh_bufer.key
+            shm.initHopScotch(this.hh_key,this.lru_key,true,this.count)
+            
+            ...
+            
+       }
+
+```
+
+Notice that in this example, the calling application is allowing the **shm-typed-lry** module to create a key for finding the segment in the OS shared memory tables. 
+
+A way to look at shared memory in the OS (e.g. Linux) is to use the *ipc* based commands.
+
+```
+ipcls -m # lists shared memory sections
+ipcrm -m id # removes the shared memory section (if something crashes say)
+```
+
+In the example both an LRU section and a hash table section have been created.
+
+
+## API
+
+For the following API's please read the description at this repository: [shm-typed-array](https://github.com/ukrbublik/shm-typed-array)
+
 See [example.js](https://github.com/ukrbublik/shm-typed-array/)
 
 ### shm.create (count, typeKey [, key])
@@ -54,7 +103,7 @@ See [example.js](https://github.com/ukrbublik/shm-typed-array/)
 ### shm.getTotalSize()
 ### shm.LengthMax
 
-Here are the API's added in this repository:
+## Here are the API's added in this repository:
 
 ### initLRU(key,record_size,region\_size,i\_am\_initializer)
 
@@ -120,10 +169,11 @@ This method dumps a JSON format of all the elements currently allocated in the L
 
 ### initHopScotch(key,lru_key,am_initializer,max_element_count)
 
-This method, **initHopSchotch**, initializes hopscotch hashing in a shared memory regions, identified by *key*. It associates the hash table with a previously allocated region intialied by **initLRU**. Use *lru_key*, the shared memory key for the LRU list so that the module may find the region. The parameter, *am_initializer*, tells the module if the regions should be initialized for the process or if it should be picked up (copying the header). There should be just one process that sets *am_initializer* to true. The max_element_count should be the same or bigger than the element count returned from the LRU methods, *lru\_max\_count* or *initLRU*. Having more is likey a good idea. Depending on how good your hash is, up to twice as much might be OK.
+This method, **initHopSchotch**, initializes Hopscotch hashing in a shared memory regions, identified by *key*. It associates the hash table with a previously allocated region intialied by **initLRU**. Use *lru_key*, the shared memory key for the LRU list so that the module may find the region. The parameter, *am_initializer*, tells the module if the regions should be initialized for the process or if it should be picked up (copying the header). There should be just one process that sets *am_initializer* to true. The max_element_count should be the same or bigger than the element count returned from the LRU methods, *lru\_max\_count* or *initLRU*. Having more is likey a good idea. Depending on how good your hash is, up to twice as much might be OK.
 
 # Cleanup
-This library does cleanup of created SHM segments only on normal exit of process, see [`exit` event](https://nodejs.org/api/process.html#process_event_exit).  
+This library does cleanup of created SHM segments only on normal exit of process, see [`exit` event](https://nodejs.org/api/process.html#process_event_exit).
+
 If you want to do cleanup on terminate signals like `SIGINT`, `SIGTERM`, please use [node-cleanup](https://github.com/jtlapp/node-cleanup) / [node-death](https://github.com/jprichardson/node-death) and add code to exit handlers:
 ```js
 shm.detachAll();
@@ -370,3 +420,57 @@ function groupSuicide() {
 **Output:**
 
 An example is provided in the repository: [test output](https://github.com/copious-world/shm-typed-lru/blob/master/test/exampe-output.txt)
+
+##Internal Documentation
+
+In this section the reader will find some information about the internal operations, the layout of memory, etc. While the API has been given, nothing has been said about the algorithms for hashing or other mechanisms such as provisions for interprocess mutex operation. This information is provided via the links to markdown documents stored in this repository.
+
+### <u>Hash table memory layout</u>
+
+The basic shared memory module provided by **shm-typed-array** allows for the management of more than one section of memory. **Shm-typed-lru** takes advantage of this in order to store larger data elements in a fixed managed region while smaller references are stored in a hash table for reverse lookup.
+
+The larger data elements, fixded in size, are kept with in a doubly linked list with fixed element offsets. The nodes of the doubly linked list are taken from a free element list embedded in data section of memory, a single shared memory segment.
+
+The Hopscotch hash table is kept in a nother shared memory segment. Lookup is done by searching the Hopscotch table in order to obtain an offset to an allocated node in the managed memory section.
+
+**A continuation of this description can be found here:** [memory layout](./doc/mem_layout.md)
+
+### <u>Hopscotch Hash Alogrithm</u>
+
+One of the better hashing algorithms is the hopscotch hash. Hash algorithms often assume that their hashes will address buckets imperfectly. As a result more than one element will fall into the same bucket. In some hash schemes, a linked list is the data structure chosen for bucket storage. Some hashes and data may result in short lists. But, in more extreme situations, many data elements may map into a sinlge bucket. In such situations, the storage becomes a linked list with ever growing time for search, insertion, and deletion. 
+
+The Hopscotch hash allows for some amount of collision and provides binary pattern data structures for managing insertion in such a way that bucket search can be optimized.
+
+Hopscotch hashing also easily resides in a single slab of shared memory. In this way, more than one process can find an element stored there.
+
+**Find implementation details here:** [code for Hopscotch](./doc/code_for_hopscotch.md)
+
+### <u>Mutex Sharing and Operations</u>
+
+More than one process may operate on the shared memory regions containing the managed memory and the Hopscotch hash tables. These operations are best protected by a locking mechanism. The locking mechanism is exposed to the application. An application could call the library in an unprotected way or opt for some its own guarding of the data structures.
+
+However, shm-typed-lru provides multi process mutex locking. The use of the POSIX mutex in a shared memory section is a fairly well known trick. The POSIX mutex operates easily enough within a process between threads. The single process has access to the memory for the lock data structures. With just a little modification, the shared memory can be used since the lock communication is via parameters in shared memory. POSIX mutex routines provide ways to specify the use of the share memory section.
+
+The shm-type-lru module provides methods for locking and locking the mutex. Applications may call these to create critical sections within separate processes.
+
+**Find implementation details here:** [Mutex Operations](./doc/mutex_ops.md)
+
+### <u>Data storage with timestamps</u>
+
+The shm-typed-lru module is an LRU. Elements that reside to long in the shared memory may be discarded. The module leaves it up to the application to decide how and when to remove elements. One method, **run\_lru\_eviction**, can be called to throw out elements that are too old. The method returns a list of elements being discarded. The application may decide to store these elsewhere or to simply use the aged out data to notify clients about the ends of processes.
+
+**A continuation of this discussion, with information about how to use evicted data, can be found here:** [LRU Eviction](./doc/lru_eviction.md)
+
+### <u>Growing by slabs</u>
+
+In a future version of this library, an optional listing of secondary slabs may be provided depending upon configuration.
+
+When the LRU becomes full, the module might move aging data into a second LRU, another managed memory and hash table pair. The older day may be searched when searches in the primary section fail.
+
+The seconday slabs may be removed when they become empty and the preasure on the primay slabs goes away.
+
+Access to these sorts of operation will be provded in methods (to be implementedd).
+
+**A continuation of this discussion can be found here:** [Extending the LRU](./doc/extended_lru.md)
+
+
