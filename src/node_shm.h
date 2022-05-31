@@ -355,6 +355,7 @@ namespace node_shm {
 	 *  run_lru_eviction  -- clear and rebuild...
 	 */
 	NAN_METHOD(run_lru_eviction);
+	NAN_METHOD(run_lru_eviction_get_values);
 
 	NAN_METHOD(debug_dump_list);
 

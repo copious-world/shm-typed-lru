@@ -38,6 +38,44 @@ inline string joiner(list<T> &jlist) {
 	return(out.substr(0,out.size()-1));
 }
 
+template<typename K,typename V>
+inline string map_maker_destruct(map<K,V> &jmap) {
+	if ( jmap.size() == 0 ) {
+		return "{}";
+	}
+	stringstream ss;
+	char del = 0;
+	ss << "{";
+	for ( auto p : jmap ) {
+		if ( del ) { ss << del; }
+		del = ',';
+		K h = p.first;
+		V v = v.second;
+		ss << "\""  << h << "\" : \""  << v << "\"";
+		delete v.second;
+	}
+	ss << "}";
+	string out = ss.str();
+	return(out.substr(0,out.size()));
+}
+
+
+template<typename K,typename V>
+inline void js_map_maker_destruct(map<K,V> &jmap,Local<Object> &jsObject) {
+	if ( jmap.size() > 0 ) {
+		for ( auto p : jmap ) {
+			string key = "";
+			key += p.first;
+			Local<String> propName = Nan::New(key).ToLocalChecked();
+			Local<String> propValue = Nan::New(p.second).ToLocalChecked();
+			Nan::Set(jsObject, propName, propValue);
+			delete p.second;
+		}
+		jmap.clear();
+	}
+}
+
+
 typedef struct LRU_ELEMENT_HDR {
 	uint32_t	_prev;
 	uint32_t	_next;
@@ -308,6 +346,27 @@ class LRU_cache {
 				ev_list.push_back(hash);
 				test_time = stored->_when;
 				this->del_el(prev_off);
+			} while ( (test_time < cutoff) && (ev_count < max_evict) );
+		}
+
+		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
+		void evict_least_used_to_value_map(time_t cutoff,uint8_t max_evict,map<uint64_t,char *> &ev_map) {
+			uint8_t *start = _region;
+			size_t step = _step;
+			LRU_element *ctrl_tail = (LRU_element *)(start + step);
+			time_t test_time = 0;
+			uint8_t ev_count = 0;
+			do {
+				uint32_t prev_off = ctrl_tail->_prev;
+				if ( prev_off == 0 ) break; // no elements left... step?? instead of 0
+				ev_count++;
+				LRU_element *stored = (LRU_element *)(start + prev_off);
+				uint64_t hash = stored->_hash;
+				test_time = stored->_when;
+				char *buffer = new char[this->record_size()];
+				this->get_el(prev_off,buffer);
+				this->del_el(prev_off);
+				ev_map[hash] = buffer;
 			} while ( (test_time < cutoff) && (ev_count < max_evict) );
 		}
 

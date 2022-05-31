@@ -889,6 +889,30 @@ namespace node_shm {
 		}
 	}
 
+	NAN_METHOD(run_lru_eviction_get_values)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		time_t cutoff = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t max_evict_b = Nan::To<uint32_t>(info[2]).FromJust();
+		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
+		if ( lru_cache == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			map<uint64_t,char *> evict_map;
+			uint8_t max_evict = (uint8_t)(max_evict_b);
+			lru_cache->evict_least_used_to_value_map(cutoff,max_evict,evict_map);
+
+			Local<Object> jsObject = Nan::New<Object>();
+			js_map_maker_destruct(evict_map,jsObject);
+			info.GetReturnValue().Set(jsObject);
+		}
+	}
+
+
 	NAN_METHOD(debug_dump_list)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
@@ -1079,6 +1103,9 @@ namespace node_shm {
 		//
 		// HOPSCOTCH HASH
 		Nan::SetMethod(target, "initHopScotch", initHopScotch);
+		//
+		Nan::SetMethod(target, "run_lru_eviction", run_lru_eviction);
+		Nan::SetMethod(target, "run_lru_eviction_get_values", run_lru_eviction_get_values);
 
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 
