@@ -50,9 +50,9 @@ inline string map_maker_destruct(map<K,V> &jmap) {
 		if ( del ) { ss << del; }
 		del = ',';
 		K h = p.first;
-		V v = v.second;
+		V v = p.second;
 		ss << "\""  << h << "\" : \""  << v << "\"";
-		delete v.second;
+		delete p.second;
 	}
 	ss << "}";
 	string out = ss.str();
@@ -482,6 +482,16 @@ class LRU_cache {
 		uint16_t max_count(void) {
 			return(_max_count);
 		}
+
+		uint16_t current_count(void) {
+			return(_count);
+		}
+
+		uint16_t free_count(void) {
+			return(_count_free);
+		}
+
+		
 
 	private:
 

@@ -615,6 +615,40 @@ namespace node_shm {
 		}
 	}
 
+	NAN_METHOD(getCurrentCount) {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+
+		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
+		if ( lru_cache == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			uint32_t count = lru_cache->current_count();
+			info.GetReturnValue().Set(Nan::New<Number>(count));
+		}
+	}
+
+
+	NAN_METHOD(getFreeCount) {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+
+		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
+		if ( lru_cache == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			uint32_t count = lru_cache->free_count();
+			info.GetReturnValue().Set(Nan::New<Number>(count));
+		}
+	}
 
 	// set el -- add a new entry to the LRU.  IF the LRU is full, return indicative value.
 	//
@@ -906,6 +940,9 @@ namespace node_shm {
 			uint8_t max_evict = (uint8_t)(max_evict_b);
 			lru_cache->evict_least_used_to_value_map(cutoff,max_evict,evict_map);
 
+			//string test = map_maker_destruct(evict_map);
+			//cout << test << endl;
+
 			Local<Object> jsObject = Nan::New<Object>();
 			js_map_maker_destruct(evict_map,jsObject);
 			info.GetReturnValue().Set(jsObject);
@@ -1085,6 +1122,9 @@ namespace node_shm {
 		Nan::SetMethod(target, "initLRU", initLRU);
 		Nan::SetMethod(target, "getSegSize", getSegSize);
 		Nan::SetMethod(target, "max_count", getMaxCount);
+		Nan::SetMethod(target, "current_count", getCurrentCount);
+		Nan::SetMethod(target, "free_count", getFreeCount);
+
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::SetMethod(target, "set_el", set_el);
 		Nan::SetMethod(target, "get_el", get_el);

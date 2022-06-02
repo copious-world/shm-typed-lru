@@ -1,7 +1,6 @@
 const cluster = require('cluster');
 const shm = require('../index.js');
 const assert = require('assert');
-const { profileEnd } = require('console');
 
 
 var buf, arr, arr2D2;

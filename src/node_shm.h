@@ -304,9 +304,19 @@ namespace node_shm {
 	 */
 	NAN_METHOD(getSegSize);
 	/**
-	 * get Mac Element count of a segment (pass this to initHopScotch)
+	 * get Max Element count of a segment (pass this to initHopScotch)
 	 */
-	NAN_METHOD(	getMaxCount);
+	NAN_METHOD(getMaxCount);
+	/**
+	 * get Current Element of an LRU (for apps that need to know, e.g. syslog)
+	 */
+	NAN_METHOD(getCurrentCount);
+	/**
+	 * get Free Count of an LRU -- e.g. if checking for nearing limits, if rationing resources e.g rate limiting
+	 */
+	NAN_METHOD(getFreeCount);
+
+
 
 	/**
 	 * add hash key and value
