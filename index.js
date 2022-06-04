@@ -150,6 +150,19 @@ function lru_max_count(key) {
 	return shm.max_count(key)
 }
 
+function current_count(key) {
+	return shm.current_count(key)
+}
+
+function free_count(key) {
+	return shm.free_count(key)
+}
+
+function epoch_time() {
+	return shm.epoch_time()
+}
+
+
 function set(key,value,hh_hash,index) {
 //console.log("Set: ",hh_hash,index)
 	if ( index == undefined ) index = 0
@@ -263,6 +276,9 @@ module.exports.LengthMax = lengthMax;
 module.exports.initLRU = initLRU;
 module.exports.getSegmentSize = getSegmentSize;
 module.exports.lru_max_count = lru_max_count
+module.exports.current_count = current_count
+module.exports.free_count = free_count
+module.exports.epoch_time = epoch_time
 module.exports.set = set;
 module.exports.get_el = get_el;
 module.exports.del_el = del_el;

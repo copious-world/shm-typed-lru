@@ -650,6 +650,17 @@ namespace node_shm {
 		}
 	}
 
+
+	// time_since_epoch
+	// helper to return the time in milliseconds
+	NAN_METHOD(time_since_epoch) {
+		Nan::HandleScope scope;
+		uint64_t epoch_time;
+		epoch_time = epoch_ms();
+		info.GetReturnValue().Set(Nan::New<Number>(epoch_time));
+	}
+
+
 	// set el -- add a new entry to the LRU.  IF the LRU is full, return indicative value.
 	//
 	NAN_METHOD(set_el)  {
@@ -676,7 +687,11 @@ namespace node_shm {
 			uint32_t offset = lru_cache->check_for_hash(hash64);
 			if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
 				uint32_t offset = lru_cache->add_el(data,hash64);
-				info.GetReturnValue().Set(Nan::New<Number>(offset));
+				if ( offset == UINT32_MAX ) {
+					info.GetReturnValue().Set(Nan::New<Boolean>(false));
+				} else {
+					info.GetReturnValue().Set(Nan::New<Number>(offset));
+				}
 			} else {
 				// there is already data -- so attempt ot update the element with new data.
 				if ( lru_cache->update_el(offset,data) ) {
@@ -917,7 +932,9 @@ namespace node_shm {
 		} else {
 			list<uint64_t> evict_list;
 			uint8_t max_evict = (uint8_t)(max_evict_b);
-			lru_cache->evict_least_used(cutoff,max_evict,evict_list);
+			time_t time_shift = epoch_ms();
+			time_shift -= cutoff;
+			lru_cache->evict_least_used(time_shift,max_evict,evict_list);
 			string evicted_hash_as_str = joiner(evict_list);
 			info.GetReturnValue().Set(New(evicted_hash_as_str.c_str()).ToLocalChecked());
 		}
@@ -938,7 +955,9 @@ namespace node_shm {
 		} else {
 			map<uint64_t,char *> evict_map;
 			uint8_t max_evict = (uint8_t)(max_evict_b);
-			lru_cache->evict_least_used_to_value_map(cutoff,max_evict,evict_map);
+			time_t time_shift = epoch_ms();
+			time_shift -= cutoff;
+			lru_cache->evict_least_used_to_value_map(time_shift,max_evict,evict_map);
 
 			//string test = map_maker_destruct(evict_map);
 			//cout << test << endl;
@@ -1124,6 +1143,7 @@ namespace node_shm {
 		Nan::SetMethod(target, "max_count", getMaxCount);
 		Nan::SetMethod(target, "current_count", getCurrentCount);
 		Nan::SetMethod(target, "free_count", getFreeCount);
+		Nan::SetMethod(target, "epoch_time", time_since_epoch);
 
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::SetMethod(target, "set_el", set_el);

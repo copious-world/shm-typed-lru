@@ -316,7 +316,10 @@ namespace node_shm {
 	 */
 	NAN_METHOD(getFreeCount);
 
-
+	/**
+	 * time_since_epoch -- unix epoch offset in milliseconds
+	 */
+	NAN_METHOD(time_since_epoch);
 
 	/**
 	 * add hash key and value

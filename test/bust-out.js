@@ -3,9 +3,23 @@ const shm = require('../index.js');
 const assert = require('assert');
 
 
-var arr2D2;
-if (cluster.isMaster) {
-	//
+
+function psleep(amount) {
+	let p = new Promise((resolve,reject) => {
+		setTimeout(() => {
+			resolve(true)
+		}, amount);
+	})
+	return p
+}
+
+
+
+
+function rest_of_test() {
+	let arr2D2;
+
+		//
 	arr2D2 =  shm.create(1000000); //1M bytes
 	console.log("arr2D2.key: " + arr2D2.key)
 	let cache_count = shm.initLRU(arr2D2.key,250,100000)
@@ -71,18 +85,55 @@ if (cluster.isMaster) {
 		hashes.push(`${hash2}-${el_diff}`)
 		el_data = `GEEE ${i} wolly gollies oglum`
 		let status = shm.set(arr2D2.key,el_data,hash2,el_diff)
+		console.log(shm.free_count(arr2D2.key))
 		if ( status === false ) {
+			console.log("breaking -- full")
+			console.log(shm.get_last_reason(arr2D2.key))
+			console.log(shm.current_count(arr2D2.key),shm.free_count(arr2D2.key))
 			break;
 		}
 	}
 
 	// dump the eviceted map
+	let evicted_count = 0;
 	if ( i < cache_count ) {
 		console.log("i < cache_count")
 	} else {
-		let evicted = shm.run_lru_eviction_get_values(arr2D2.key,Date.now() - 5000,20)
+		let delta_time_cutoff = 5
+		let evicted = shm.run_lru_eviction_get_values(arr2D2.key,delta_time_cutoff,20)
+		console.log("evicting something: ")
 		if ( typeof evicted === "object" ) {
+			console.log("this got evicted: ")
 			console.dir(evicted)
+			evicted_count = Object.keys(evicted).length
+		}
+	}
+
+
+	console.log(shm.current_count(arr2D2.key),shm.free_count(arr2D2.key))
+
+	hashes.forEach(hsh => {
+		let pair = hsh.split('-')
+		let hash = parseInt(pair[0])
+		let index = parseInt(pair[1])
+		let tst_value = shm.get_el_hash(arr2D2.key,hash,index)   // some of these hashes should be gone
+		console.log(`fetching after adding arr2D2 >> hash[${hash}]: value[${tst_value}]`)
+	})
+
+	i = 0;
+	evicted_count--
+	while ( i++ < evicted_count ) {
+		hash2++;
+		el_diff++
+		hashes.push(`${hash2}-${el_diff}`)
+		el_data = `GEEE ${i} wolly gollies oglum`
+		let status = shm.set(arr2D2.key,el_data,hash2,el_diff)
+		console.log(shm.free_count(arr2D2.key))
+		if ( status === false ) {
+			console.log("breaking -- full")
+			console.log(shm.get_last_reason(arr2D2.key))
+			console.log(shm.current_count(arr2D2.key),shm.free_count(arr2D2.key))
+			break;
 		}
 	}
 
@@ -93,6 +144,24 @@ if (cluster.isMaster) {
 		let tst_value = shm.get_el_hash(arr2D2.key,hash,index)   // some of these hashes should be gone
 		console.log(`fetching after adding arr2D2 >> hash[${hash}]: value[${tst_value}]`)
 	})
+
+
+}
+
+if (cluster.isMaster) {
+	//
+	(async () => {
+		for( let i = 0; i < 4; i++ ) {
+			let et = shm.epoch_time()
+			console.log(et)
+			await psleep(10)
+			console.log(Date.now())
+			await psleep(90)
+		}
+		rest_of_test()
+	})()
+
+	//
 
 
 } else {  // child process....

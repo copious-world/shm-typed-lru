@@ -22,6 +22,48 @@ using namespace std;
 #include <map>
 #include <unordered_map>
 #include <list>
+#include <chrono>
+
+
+
+using namespace std::chrono;
+
+/*
+auto ms_since_epoch(std::int64_t m){
+  return std::chrono::system_clock::from_time_t(time_t{0})+std::chrono::milliseconds(m);
+}
+
+uint64_t timeSinceEpochMilliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(
+    std::chrono::system_clock::now().time_since_epoch()
+).count();
+
+
+int main()
+{
+    using namespace std::chrono;
+ 
+    uint64_t ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+    std::cout << ms << " milliseconds since the Epoch\n";
+ 
+    uint64_t sec = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
+    std::cout << sec << " seconds since the Epoch\n";
+ 
+    return 0;
+}
+
+
+milliseconds ms = duration_cast< milliseconds >(
+    system_clock::now().time_since_epoch()
+);
+
+*/
+
+
+inline uint64_t epoch_ms(void) {
+	uint64_t ms;
+	ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+	return ms;
+}
 
 
 template<typename T>
@@ -64,10 +106,13 @@ template<typename K,typename V>
 inline void js_map_maker_destruct(map<K,V> &jmap,Local<Object> &jsObject) {
 	if ( jmap.size() > 0 ) {
 		for ( auto p : jmap ) {
-			string key = "";
-			key += p.first;
+			stringstream ss;
+			ss << p.first;
+			string key = ss.str();
+			//
 			Local<String> propName = Nan::New(key).ToLocalChecked();
 			Local<String> propValue = Nan::New(p.second).ToLocalChecked();
+			//
 			Nan::Set(jsObject, propName, propValue);
 			delete p.second;
 		}
@@ -189,7 +234,7 @@ class LRU_cache {
 			LRU_element *ctrl_free = (LRU_element *)(start + 2*step);
 			if (  ctrl_free->_next == UINT32_MAX ) {
 				_status = false;
-				_reason = "out of free memory";
+				_reason = "out of free memory: free count == 0";
 				return(UINT32_MAX);
 			}
 			//
@@ -204,7 +249,7 @@ class LRU_cache {
 			new_el->_prev = 0; // offset to header
 			header->_next = new_el_offset;
 			//
-			new_el->_when = time(0);
+			new_el->_when = epoch_ms();
 			new_el->_hash = hash64;
 			char *store_el = (char *)(new_el + 1);
 			//
@@ -214,7 +259,7 @@ class LRU_cache {
 			//
 			this-> store_in_hash(hash64,new_el_offset);
 			_count++;
-			_count_free--;
+			if ( _count_free > 0 ) _count_free--;
 			return(new_el_offset);
 	    }
 
@@ -280,6 +325,7 @@ class LRU_cache {
 			ctrl_free->_next = offset;
 			//
 			this->remove_key(hash);
+			_count_free++;
 			//
 			return(true);
 		}
@@ -356,6 +402,7 @@ class LRU_cache {
 			LRU_element *ctrl_tail = (LRU_element *)(start + step);
 			time_t test_time = 0;
 			uint8_t ev_count = 0;
+			uint64_t last_hash = 0;
 			do {
 				uint32_t prev_off = ctrl_tail->_prev;
 				if ( prev_off == 0 ) break; // no elements left... step?? instead of 0
@@ -516,7 +563,7 @@ class LRU_cache {
 			first->_prev = offset;
 			header->_next = offset;
 			stored->_prev = 0;
-			stored->_when = time(0);
+			stored->_when = epoch_ms();
 			//
 			return(true);
 		}
