@@ -551,9 +551,9 @@ namespace node_shm {
 					LRU_cache *lru_cache = g_LRU_caches_per_segment[lru_key];
 					if ( lru_cache == nullptr ) {
 						if ( shmCheckKey(key) ) {
-							info.GetReturnValue().Set(Nan::New<Number>(-2));
+							info.GetReturnValue().Set(Nan::New<Boolean>(false));
 						} else {
-							info.GetReturnValue().Set(Nan::New<Number>(-3));
+							info.GetReturnValue().Set(Nan::New<Number>(-2));
 						}
 					} else {
 						lru_cache->set_hash_impl(hmap);

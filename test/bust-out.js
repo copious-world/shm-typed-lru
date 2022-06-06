@@ -18,14 +18,12 @@ function psleep(amount) {
 
 function rest_of_test() {
 	let arr2D2;
-
 		//
 	arr2D2 =  shm.create(1000000); //1M bytes
 	console.log("arr2D2.key: " + arr2D2.key)
 	let cache_count = shm.initLRU(arr2D2.key,250,100000)
 	console.log("CACHE count: " + cache_count)
 	console.log("Segment Size: " + shm.getSegmentSize(arr2D2.key))
-
 	// // cache_count
 	let hh_table_2D2 =  shm.create(cache_count*24*10); //1M bytes
 	shm.initHopScotch(hh_table_2D2.key,arr2D2.key,true,cache_count*2)  // bigger than # els in LRU

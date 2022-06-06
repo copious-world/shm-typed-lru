@@ -72,7 +72,6 @@ Here is an example from shm-lru-cache:
             shm.initHopScotch(this.hh_key,this.lru_key,true,this.count)
             
             ...
-            
        }
 
 ```
@@ -91,6 +90,21 @@ In the example both an LRU section and a hash table section have been created.
 
 ## API
 
+> In the following, the **key** parameter is the identifier of the shared memory section. Please avoid confusing this with a key for a value, which will usually be a hash key or perhaps an element offset.
+> 
+> The **key** is a reference to a shared memory structure obtained by **shm.create**
+> 
+
+### - generic return values
+
+* If a segment exists in the OS table, but the module has lost track of it. Most of the APIs, except those related to the mutex will return a Boolean value of **false**.  Mutex methods return a number -3 instead of **false**. The Boolean values are used for testing the lock. 
+
+* If the segment identified by the **key** is not known to the OS, a number -1 will be returned.
+
+* Other values relate to the success or failure of the operation. A generic success value is the Boolean value **true**, while failure will be the number -2. Some methods return a positive number, e.g. a hash value, an index, or a string.
+
+
+## Inherited Methods
 For the following API's please read the description at this repository: [shm-typed-array](https://github.com/ukrbublik/shm-typed-array)
 
 See [example.js](https://github.com/ukrbublik/shm-typed-array/)
@@ -107,75 +121,147 @@ See [example.js](https://github.com/ukrbublik/shm-typed-array/)
 
 ### initLRU(key,record_size,region\_size,i\_am\_initializer)
 
-Given a key to a shared memory structure obtained by shm.create, this will create an LRU data structure in the shared memory region. The record size is new information not give to shm.create. The region size should be the same (see *count*). The basic communication use is for one process to be the master of the region. Call that process the initializer. Initialization creates data structurs. When *i\_am\_initializer* is set to false, the process using this module will read the existing data structures. 
+**key** is the shared memory region key
 
-Within the library, each process will have a hash map (C++ unorderd_map) that maps hashes to the offsets (from the start of the shared block). Initialization sets up the map, which grows and shrinks as elements are added or removed.
+> This will create an LRU data structure in the shared memory region. The record size is new information not give to shm.create. The region size should be the same (see *count*). The basic communication use is for one process to be the master of the region. Call that process the initializer. Initialization creates data structurs. When *i\_am\_initializer* is set to false, the process using this module will read the existing data structures. 
 
-Returns the number of elements that may be stored in the region.
+> Within the library, each process will have a hash map (C++ unorderd_map) that maps hashes to the offsets (from the start of the shared block). 
+
+**Returns**: the number of elements that may be stored in the region. Failure values as above.
 
 ### getSegmentSize(key)
 
-Given a key for a shared memory region, this returns the length of just that region.
+**key** is the shared memory region key
+
+> This returns the length of just that region.
+
+**Returns**: shared memory region length as a number. Failure values as above.
 
 ### lru\_max\_count(key)
 
-Given a key for a shared memory region initialized with initLRU, this returns the maximum number of elements of size *record\_size*. (good to use in initHopScotch)
+**key** is the shared memory region key
+
+> This fetches the maximum number of elements of size *record\_size*. *(good to use in initHopScotch)*.
+
+**Returns**: the maximum number of elements that may be stored. Failure values as above.
+
 
 ### set(key,value,hash,[index])
 
-The application creates a hash key fitting UInt32. The key becomes the identifier for the stored value. The value should fit within the *record\_size* provided to initLRU. An index, used to distinguish the element in case of a hash collision may be optionally passed. *index* defaults to zero.
+**key** is the shared memory region key
 
-Returns: UInt32 offset to the element record. (Care should be taken when using the index versions of get, set, del.
+> The application creates a hash key fitting UInt32. The hash key becomes the identifier for the stored value. The value should fit within the *record\_size* provided to initLRU. An index, used to distinguish the element in case of a hash collision may be optionally passed. *index* defaults to zero.
 
-### get_el\_hash(key,hash,[index])
+**Returns**: UInt32 offset to the element record. (Care should be taken when using the index versions of get, set, del.) Failure values as above.
 
-Retuns the value previously stored in conjunction with the provided hash. If the element was stored with an index, the same index should be passed. 
+### get\_el\_hash(key,hash,[index])
 
-### del_key(key,hash,[index])
+**key** is the shared memory region key
 
-Deletes the record (moves it to the free list), and removes the hash from  any hash map data structures governed by the module. If the element was stored with an index, the same index should be passed.
+> Retuns the value previously stored in conjunction with the provided hash. If the element was stored with an index, the same index should be passed. 
 
-### get_el(key,index)
+**Returns**: the stored value as a string if successful. Failure values as above.
 
-Retuns the value previously stored in conjunction with the index returned from *set*. (Note: if the element has been deleted, the value, prepended with the string "DELETED" will be accessible until it is overwritten. The element will not be accesible by the hash version of this method.)
+### del\_key(key,hash,[index])
 
-### del_el(key,index)
+**key** is the shared memory region key
 
-Deletes the record (moves it to the free list), and removes the internally stored hash from  any hash map data structures governed by the module.
+> Deletes the record (moves it to the free list), and removes the hash from  any hash map data structures governed by the module. If the element was stored with an index, the same index should be passed.
 
-### get\_last_reason(key)
+**Returns**: Boolean value true if it succeeds. Failure values as above.
 
-If an error occurs, as may be indicated by negative return values from methods, this method reports the reason published by the module. Accessing the reason will cause it to be reset to "OK", its initial state. 
+### get\_el(key,index)
+
+**key** is the shared memory region key
+
+**Returns**: the value previously stored in conjunction with the index returned from *set*. (Note: if the element has been deleted, the value, prepended with the string "DELETED" will be accessible until it is overwritten. The element will not be accesible by the hash version of this method.) Failure values as above.
+
+### del\_el(key,index)
+
+**key** is the shared memory region key
+
+> Deletes the record (moves it to the free list), and removes the internally stored hash from any hash map data structures governed by the module.
+
+**Returns:** **true**. Failure values as above.
+
+### get\_last\_reason(key)
+
+**key** is the shared memory region key
+
+> If an error occurs, as may be indicated by negative return values from methods, this method reports the reason published by the module. Accessing the reason will cause it to be reset to "OK", its initial state.
+
+**Returns:** A string assigned to the last error. Failure values as above.
 
 ### reload\_hash_map(key)
 
-Synchronizes the internal hash map for the calling process with the existing allocated data.
+**key** is the shared memory region key
 
-### reload\_hash\_map\_update(key,share_key)
+> Synchronizes the internal hash map for the calling process with the existing allocated data.
 
-Does the same as *reload\_hash_map*, but only inspects elements with a share_key matching the one passed to this method.
+**Returns:** **true**. Failure values as above.
 
-### run\_lru\_eviction(key,cutoff\_time,max_evictions)
+### reload\_hash\_map\_update(key,share\_key)
 
-The application process sets the policy as to when to run the eviction method. This method deletes all elements that are prior to the time cutoff up to as many as max\_evictions. 
+**key** is the shared memory region key
 
-### set\_share\_key(key,index,share_key)
+> Does the same as *reload\_hash_map*, but only inspects elements with a share_key matching the one passed to this method.
 
-Access an element by index and sets its share_key for use in reloading hash maps. 
+**Returns:** **true**. Failure values as above.
+
+### run\_lru\_eviction(key,cutoff\_time,max\_evictions)
+
+**key** is the shared memory region key
+
+> The application process sets the policy as to when to run the eviction method. This method deletes all elements that are prior to the time cutoff up to as many as max\_evictions.
+
+**Returns:** A list of hashes that were removed. Failure values as above.
+
+### run\_lru\_eviction\_get\_values(key,cutoff\_time,max\_evictions)
+
+**key** is the shared memory region key
+
+> This is the same as run\_lru\_eviction except that instead of returning a list of hashes, it returns a map object with hashes as keys and values stored under the key as the map object values.  The values will be strings.
+
+**Returns:** A map table hash to value. Failure values as above.
+
+
+### set\_share\_key(key,index,share\_key)
+
+**key** is the shared memory region key
+
+> Access an element by index and sets its share_key for use in reloading hash maps. In some case the tables may be filtered on reloading, so that only those with the share key are put back in the hash map. 
+
+> If the shared hash map is not used. A process may set the share key and create an map table in the memory of the process where the table only includes those hashes that have the same share key. (This has been useful for debugging. But, some essoteric programs may beed this feature.)
+
+**Returns:** **true**. Failure values as above.
 
 ### debug\_dump\_list(key,backwards)
 
-This method dumps a JSON format of all the elements currently allocated in the LRU.
+**key** is the shared memory region key
 
-### initHopScotch(key,lru_key,am_initializer,max_element_count)
+> This method dumps a JSON format of all the elements currently allocated in the LRU. Formats its output for the terminal. This has no options for formatting.
 
-This method, **initHopSchotch**, initializes Hopscotch hashing in a shared memory regions, identified by *key*. It associates the hash table with a previously allocated region intialied by **initLRU**. Use *lru_key*, the shared memory key for the LRU list so that the module may find the region. The parameter, *am_initializer*, tells the module if the regions should be initialized for the process or if it should be picked up (copying the header). There should be just one process that sets *am_initializer* to true. The max_element_count should be the same or bigger than the element count returned from the LRU methods, *lru\_max\_count* or *initLRU*. Having more is likey a good idea. Depending on how good your hash is, up to twice as much might be OK.
+**Returns:** **true**. Failure values as above.
+
+
+### initHopScotch(key,lru\_key,am\_initializer,max\_element\_count)
+
+**key** is the shared memory region key containing the hash map. **lru\_key** is the key of the LRU region.
+
+> This method, **initHopSchotch**, initializes Hopscotch hashing in a shared memory regions, identified by *key*. It associates the hash table with a previously allocated region intialied by **initLRU**. Use *lru\_key*, the shared memory key for the LRU list so that the module may find the region. The parameter, *am\_initializer*, tells the module if the regions should be initialized for the process or if it should be picked up (copying the header). There should be just one process that sets *am\_initializer* to true. The max_element_count should be the same or bigger than the element count returned from the LRU methods, *lru\_max\_count* or *initLRU*. Having more is likey a good idea. Depending on how good your hash is, up to twice as much might be OK.
+
+**Throws**: If there is no shared memory segment and some other condition than ENOENT or EIDRM was found.
+
+**Throws**: "Bad parametes for initLRU" indicating that the initialization failed. (Specifically, these are allocations to objects tracking the tables in the current process)
+
+**Returns:** **true** on success. Otherwise: the key that was passed if the module has lost track of the segment; -1 if the segment address can't be determined; Failure values as above in relation to the LRU segment.
+
 
 # Cleanup
 This library does cleanup of created SHM segments only on normal exit of process, see [`exit` event](https://nodejs.org/api/process.html#process_event_exit).
 
 If you want to do cleanup on terminate signals like `SIGINT`, `SIGTERM`, please use [node-cleanup](https://github.com/jtlapp/node-cleanup) / [node-death](https://github.com/jprichardson/node-death) and add code to exit handlers:
-```js
+```
 shm.detachAll();
 ```
 
@@ -431,7 +517,7 @@ The basic shared memory module provided by **shm-typed-array** allows for the ma
 
 The larger data elements, fixded in size, are kept with in a doubly linked list with fixed element offsets. The nodes of the doubly linked list are taken from a free element list embedded in data section of memory, a single shared memory segment.
 
-The Hopscotch hash table is kept in a nother shared memory segment. Lookup is done by searching the Hopscotch table in order to obtain an offset to an allocated node in the managed memory section.
+The Hopscotch hash table is kept in another shared memory segment. Lookup is done by searching the Hopscotch table in order to obtain an offset to an allocated node in the managed memory section.
 
 **A continuation of this description can be found here:** [memory layout](./doc/mem_layout.md)
 
