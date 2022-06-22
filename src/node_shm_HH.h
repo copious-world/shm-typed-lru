@@ -109,8 +109,8 @@ class HH_map : public HMap_interface {
 
 		//  store
 		uint64_t store(uint64_t loaded_hash, uint32_t v_value) {
-			uint32_t element_diff = (uint32_t)((loaded_hash >> HALF) & HASH_MASK);
-			uint32_t hash = (uint32_t)(loaded_hash & HASH_MASK);
+			uint32_t element_diff = (uint32_t)((loaded_hash >> HALF) & HASH_MASK);  // JS usage -- this is the index
+			uint32_t hash = (uint32_t)(loaded_hash & HASH_MASK);				// JS usage -- this is the base hash
 			//
 //cout << "store>> element_diff: " << element_diff << " hash: " << hash << endl;
 			//
@@ -343,6 +343,8 @@ class HH_map : public HMap_interface {
 		// note: not implementing resize since the size of the share segment is controlled by the application..
 
 		// MAP OPERATION
+
+		// loaded value -- value is on top (high word) and the index (top of loaded hash) is on the
 
 		uint64_t put_hh_map(HHash *T, uint32_t hash_of_loaded, uint32_t index, uint32_t value) {
 			if ( value == 0 ) return false;

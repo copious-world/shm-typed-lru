@@ -16,6 +16,7 @@ namespace Buffer {
 	using v8::MaybeLocal;
 	//
 	using v8::Object;
+	using v8::Array;
 	using v8::Integer;
 	using v8::Maybe;
 	using v8::String;
@@ -703,6 +704,56 @@ namespace node_shm {
 		}
 	}
 
+
+	// set_many -- add list of new entries to the LRU.  Return the results of adding.
+	//
+	NAN_METHOD(set_many)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		Local<Array> jsArray = Local<Array>::Cast(info[1]);
+		//
+		// First check to see if a buffer was every allocated
+		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
+		if ( lru_cache == nullptr ) {		// buffer was not set yield an error
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+
+			uint8_t n = jsArray->Length()
+			Local<Array> jsArrayResults = Nan::New<Array>(n);
+			//
+			Local<Value> jsElement;
+			//
+			for (unsigned int i = 0; i < n; i++) {
+				jsElement = jsArray->Get(i);
+				if ( jsElement->IsArray() ) {
+					Handle<Array> jsSubArray = Handle<Array>::Cast(jsElement);
+					//
+					Handle<Value> val0 = jsSubArray->Get(0);
+					uint32_t hash = Nan::To<uint32_t>(val0.FromJust());
+					//
+					Handle<Value> val1 = jsSubArray->Get(1);
+					uint32_t index = Nan::To<uint32_t>(val1.FromJust());
+					//
+					Handle<Value> val2 = jsSubArray->Get(2);
+					Utf8String data_arg(val2);
+					//
+					uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+					char *data = *data_arg;
+					// is the key already assigned ?  >> check_for_hash 
+					uint32_t offset = lru_cache->check_for_hash(hash64);
+					//
+					Nan::Set(jsArrayResults, i, Nan::New<Integer>(offset).ToLocalChecked());
+				}
+			}
+			info.GetReturnValue().Set(jsArrayResults);
+		}
+	}
+
+
 	NAN_METHOD(get_el)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
@@ -1147,6 +1198,8 @@ namespace node_shm {
 
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		Nan::SetMethod(target, "set_el", set_el);
+		Nan::SetMethod(target, "set_many", set_many);
+		//
 		Nan::SetMethod(target, "get_el", get_el);
 		Nan::SetMethod(target, "del_el", del_el);
 		Nan::SetMethod(target, "del_key", del_key);

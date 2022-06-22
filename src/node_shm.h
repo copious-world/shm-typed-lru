@@ -327,6 +327,11 @@ namespace node_shm {
 	NAN_METHOD(set_el);
 
 	/**
+	 * add a list of hash key and value
+	 */
+	NAN_METHOD(set_many);
+
+	/**
 	 * get element at index
 	 */
 	NAN_METHOD(get_el);

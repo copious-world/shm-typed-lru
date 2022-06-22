@@ -151,6 +151,8 @@ See [example.js](https://github.com/ukrbublik/shm-typed-array/)
 **key** is the shared memory region key
 
 > The application creates a hash key fitting UInt32. The hash key becomes the identifier for the stored value. The value should fit within the *record\_size* provided to initLRU. An index, used to distinguish the element in case of a hash collision may be optionally passed. *index* defaults to zero.
+> 
+> > Internal to the hash table implementation, the index is stored in the high word of the table's hash key, and the low word stores the hash. The hash and the index are passed in as 32 bit words. The internal hash key is a 64 bit word. (Because of the word size difference, almost an artifact of using node api ia Nan, the application may decide to split 64bit hashes that it creates into these two parts.)
 
 **Returns**: UInt32 offset to the element record. (Care should be taken when using the index versions of get, set, del.) Failure values as above.
 
