@@ -417,6 +417,8 @@ class LRU_cache {
 			} while ( (test_time < cutoff) && (ev_count < max_evict) );
 		}
 
+
+		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 		size_t _walk_allocated_list(uint8_t call_mapper,bool backwards = false) {
 			if ( backwards ) {
 				return(_walk_allocated_list_backwards(call_mapper));
@@ -424,7 +426,6 @@ class LRU_cache {
 				return(_walk_allocated_list_forwards(call_mapper));
 			}
 		}
-
 
 		size_t _walk_allocated_list_forwards(uint8_t call_mapper) {
 			uint8_t *start = _region;

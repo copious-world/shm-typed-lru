@@ -687,7 +687,7 @@ namespace node_shm {
 			// is the key already assigned ?  >> check_for_hash 
 			uint32_t offset = lru_cache->check_for_hash(hash64);
 			if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
-				uint32_t offset = lru_cache->add_el(data,hash64);
+				offset = lru_cache->add_el(data,hash64);
 				if ( offset == UINT32_MAX ) {
 					info.GetReturnValue().Set(Nan::New<Boolean>(false));
 				} else {
@@ -721,33 +721,39 @@ namespace node_shm {
 				info.GetReturnValue().Set(Nan::New<Number>(-1));
 			}
 		} else {
-
-			uint8_t n = jsArray->Length()
+			// important -- the code is only really simple to write if v8 is used straightup.
+			// nan will help get the context -- use v8 get and set with the context
+			v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+			//
+			uint8_t n = jsArray->Length();
 			Local<Array> jsArrayResults = Nan::New<Array>(n);
 			//
-			Local<Value> jsElement;
 			//
-			for (unsigned int i = 0; i < n; i++) {
-				jsElement = jsArray->Get(i);
-				if ( jsElement->IsArray() ) {
-					Handle<Array> jsSubArray = Handle<Array>::Cast(jsElement);
-					//
-					Handle<Value> val0 = jsSubArray->Get(0);
-					uint32_t hash = Nan::To<uint32_t>(val0.FromJust());
-					//
-					Handle<Value> val1 = jsSubArray->Get(1);
-					uint32_t index = Nan::To<uint32_t>(val1.FromJust());
-					//
-					Handle<Value> val2 = jsSubArray->Get(2);
-					Utf8String data_arg(val2);
-					//
-					uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
-					char *data = *data_arg;
-					// is the key already assigned ?  >> check_for_hash 
-					uint32_t offset = lru_cache->check_for_hash(hash64);
-					//
-					Nan::Set(jsArrayResults, i, Nan::New<Integer>(offset).ToLocalChecked());
+			for (uint8_t i = 0; i < n; i++) {		
+				Local<v8::Array> jsSubArray = Local<Array>::Cast(jsArray->Get(context, i).ToLocalChecked());
+        		uint32_t hash = jsSubArray->Get(context, 0).ToLocalChecked()->Uint32Value(context).FromJust();
+        		uint32_t index = jsSubArray->Get(context, 1).ToLocalChecked()->Uint32Value(context).FromJust();
+				Utf8String data_arg(jsSubArray->Get(context, 2).ToLocalChecked());
+				uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+				char *data = *data_arg;
+				// is the key already assigned ?  >> check_for_hash 
+				uint32_t offset = lru_cache->check_for_hash(hash64);
+				if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
+					offset = lru_cache->add_el(data,hash64);
+					if ( offset == UINT32_MAX ) {
+						Nan::Set(jsArrayResults, i, Nan::New<Boolean>(false));
+					} else {
+						Nan::Set(jsArrayResults, i, Nan::New<Number>(offset));
+					}
+				} else {
+					// there is already data -- so attempt ot update the element with new data.
+					if ( lru_cache->update_el(offset,data) ) {
+						Nan::Set(jsArrayResults, i, Nan::New<Number>(offset));
+					} else {
+						Nan::Set(jsArrayResults, i, Nan::New<Boolean>(false));
+					}
 				}
+				//
 			}
 			info.GetReturnValue().Set(jsArrayResults);
 		}
