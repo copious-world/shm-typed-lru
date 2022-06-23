@@ -728,7 +728,7 @@ namespace node_shm {
 			uint16_t n = jsArray->Length();
 			Local<Array> jsArrayResults = Nan::New<Array>(n);
 			//
-cout << "N " << n << endl;
+//cout << "N " << n << endl;
 			//
 			for (uint16_t i = 0; i < n; i++) {		
 				Local<v8::Array> jsSubArray = Local<Array>::Cast(jsArray->Get(context, i).ToLocalChecked());
@@ -737,7 +737,7 @@ cout << "N " << n << endl;
 				Utf8String data_arg(jsSubArray->Get(context, 2).ToLocalChecked());
 				uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
 				char *data = *data_arg;
-	cout << data << endl;
+	//cout << data << endl;
 				// is the key already assigned ?  >> check_for_hash 
 				uint32_t offset = lru_cache->check_for_hash(hash64);
 				if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
