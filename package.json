@@ -1,6 +1,6 @@
 {
   "name": "shm-typed-lru",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "LRU shared memory list build on top of shm-type-array.",
   "main": "index.js",
   "repository": {
@@ -48,6 +48,7 @@
   "homepage": "https://github.com/copious-world/shm-typed-lru",
   "scripts": {
     "gyp-install": "node-gyp configure && node-gyp rebuild",
+    "preinstall": "bash util/help-install.sh",
     "install": "cmake-js compile",
     "test": "node test/example.js"
   },
