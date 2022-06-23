@@ -169,6 +169,14 @@ function set(key,value,hh_hash,index) {
 	return shm.set_el(key,hh_hash,index,value)
 }
 
+
+
+function set_many(key,value_hash_array) {
+	if ( !(Array.isArray(value_hash_array)) ) return false
+	return shm.set_many(key,value_hash_array)
+}
+	
+
 function get_el(key,index) {
 	return shm.get_el(key,index)
 }
@@ -280,6 +288,7 @@ module.exports.current_count = current_count
 module.exports.free_count = free_count
 module.exports.epoch_time = epoch_time
 module.exports.set = set;
+module.exports.set_many = set_many;
 module.exports.get_el = get_el;
 module.exports.del_el = del_el;
 module.exports.del_key = del_key;
