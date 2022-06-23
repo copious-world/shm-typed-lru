@@ -1,13 +1,13 @@
 lockfileVersion: 5.4
 
 specifiers:
-  '@types/node': ^10.9.4
-  nan: ^2.15.0
+  '@types/node': ^10.17.60
+  nan: ^2.16.0
   typescript: ^2.9.2
-  typings-tester: ^0.3.1
+  typings-tester: ^0.3.2
 
 dependencies:
-  nan: 2.15.0
+  nan: 2.16.0
 
 devDependencies:
   '@types/node': 10.17.60
@@ -24,8 +24,8 @@ packages:
     resolution: {integrity: sha512-GpVkmM8vF2vQUkj2LvZmD35JxeJOLCwJ9cUkugyk2nuhbv3+mJvpLYYt+0+USMxE+oj+ey/lJEnhZw75x/OMcQ==}
     dev: true
 
-  /nan/2.15.0:
-    resolution: {integrity: sha512-8ZtvEnA2c5aYCZYd1cvgdnU6cqwixRoYg70xPLWUws5ORTa/lnw+u4amixRS/Ac5U5mQVgp9pnlSUnbNWFaWZQ==}
+  /nan/2.16.0:
+    resolution: {integrity: sha512-UdAqHyFngu7TfQKsCBgAA6pWDkT8MAO7d0jyOecVhN5354xbLqdn8mV9Tat9gepAupm0bt2DbeaSC8vS52MuFA==}
     dev: false
 
   /typescript/2.9.2:

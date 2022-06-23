@@ -26,6 +26,10 @@ process.on('SIGINT',() => {
 	if ( typeof sigint_proc_stop === "function" ) sigint_proc_stop()
 })
 
+function set_sigint_proc_stop(func) {
+	sigint_proc_stop = func
+}
+
 /**
  * Types of shared memory object
  */
@@ -317,5 +321,5 @@ module.exports.try_lock = try_lock
 module.exports.lock = lock
 module.exports.unlock = unlock
 module.exports.get_last_mutex_reason = get_last_mutex_reason
-module.exports.IPCClientCommunicator = IPCClient.Communicator
+module.exports.set_sigint_proc_stop = set_sigint_proc_stop
 

@@ -1,6 +1,6 @@
 {
   "name": "shm-typed-lru",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "description": "LRU shared memory list build on top of shm-type-array.",
   "main": "index.js",
   "repository": {
@@ -34,7 +34,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "nan": "^2.15.0"
+    "nan": "^2.16.0"
   },
   "os": [
     "!win32"
@@ -53,8 +53,8 @@
     "test": "node test/example.js"
   },
   "devDependencies": {
-    "@types/node": "^10.9.4",
+    "@types/node": "^10.17.60",
     "typescript": "^2.9.2",
-    "typings-tester": "^0.3.1"
+    "typings-tester": "^0.3.2"
   }
 }
