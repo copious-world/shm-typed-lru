@@ -11,7 +11,7 @@ const lengthMin = 1;
  */
 const lengthMax = shm.NODE_BUFFER_MAX_LENGTH;
 
-const cleanup = function () {
+const cleanup = () => {
 	try {
 		var cnt = shm.detachAll();
 		if (cnt > 0)
@@ -19,6 +19,12 @@ const cleanup = function () {
 	} catch(exc) { console.error(exc); }
 };
 process.on('exit', cleanup);
+let sigint_proc_stop = false
+process.on('SIGINT',() => {
+	cleanup()
+	if ( sigint_proc_stop === true ) process.exit(0)
+	if ( typeof sigint_proc_stop === "function" ) sigint_proc_stop()
+})
 
 /**
  * Types of shared memory object
@@ -311,3 +317,5 @@ module.exports.try_lock = try_lock
 module.exports.lock = lock
 module.exports.unlock = unlock
 module.exports.get_last_mutex_reason = get_last_mutex_reason
+module.exports.IPCClientCommunicator = IPCClient.Communicator
+
