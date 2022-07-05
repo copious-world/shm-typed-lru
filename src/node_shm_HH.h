@@ -148,10 +148,45 @@ class HH_map : public HMap_interface {
 	private:
  
 		uint32_t _succ_hh_hash(HHash *T, uint32_t h, uint32_t i) {
+			if ( i == 32 ) return(UINT32_MAX);
 			uint32_t N = T->_max_n;
 			h = (h % N);
-			return _succ(T, h, i);
+			return _succ(h, i);
 		}
+
+/*		// these are for testing purposes only
+		uint32_t _next_T(uint32_t _H, uint32_t i) {
+  			uint32_t H = _H & (~0 << i);
+  			if ( H == 0 ) return UINT32_MAX;  // like -1
+			uint32_t ffs = FFS(H);
+cout << " ffs: " << ffs;
+  			return ffs;	// return the count of trailing zeros
+		}
+
+		uint32_t _succ_T(uint32_t h, uint32_t i) {
+			uint32_t *buffer = _region_H;
+			uint32_t H = buffer[h];
+cout << " _succ_T: GET(H, i)  " << GET(H, i);
+  			if ( GET(H, i) ) return i;		// look at the control bits of the test position... see if the position is set.
+			uint32_t b = _next_T(H, i);
+
+cout << " _succ_T-> _next_T: b  " << b;
+
+  			return b;			// otherwise, what's next...
+		}
+
+
+		uint32_t _succ_hh_hash_T(HHash *T, uint32_t h, uint32_t i) {
+			if ( i == 32 ) return(UINT32_MAX);
+			uint32_t N = T->_max_n;
+			h = (h % N);
+cout << "h: " << h << " of " << N << " i: " << i ;
+			uint32_t jk = _succ_T(h, i);
+cout << endl;
+			return jk;
+		}
+*/
+
 
 		void del_hh_hash(HHash *T, uint32_t h, uint32_t i) {
 			uint32_t *buffer = _region_H;
@@ -196,7 +231,7 @@ class HH_map : public HMap_interface {
 				// found a position that can be moved... (offset from h <= d closer to the neighborhood)
 				uint32_t j = z;
 				z = MOD((N + hd - z), N);			// hd - z is an (offset from h) < h + d or (h + z) < (h + d)
-				uint32_t i = _succ(T, z, 0);		// either this is moveable or there's another one.
+				uint32_t i = _succ(z, 0);		// either this is moveable or there's another one.
 				_swap(T, z, i, j);
 				d = MOD( (N + z + i - h), N );
 			}
@@ -219,19 +254,17 @@ class HH_map : public HMap_interface {
 			return(true);
 		}
 
-		uint32_t _next(HHash *T, uint32_t h, uint32_t i) {
-			uint32_t *buffer = _region_H;
-  			uint32_t H = buffer[h] & (~0 << i);
+		uint32_t _next(uint32_t _H, uint32_t i) {
+  			uint32_t H = _H & (~0 << i);
   			if ( H == 0 ) return UINT32_MAX;  // like -1
   			return FFS(H);	// return the count of trailing zeros
 		}
 
-		uint32_t _succ(HHash *T, uint32_t h, uint32_t i) {
+		uint32_t _succ(uint32_t h, uint32_t i) {
 			uint32_t *buffer = _region_H;
 			uint32_t H = buffer[h];
-//cout << "_succ: h: " << h << " H: " << H << endl;
   			if ( GET(H, i) ) return i;		// look at the control bits of the test position... see if the position is set.
-  			return _next(T, h, i);			// otherwise, what's next...
+  			return _next(H, i);			// otherwise, what's next...
 		}
 
 		void _swap(HHash *T, uint32_t h, uint32_t i, uint32_t j) {
