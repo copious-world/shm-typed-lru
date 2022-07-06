@@ -239,6 +239,12 @@ class LRU_cache {
 			}
 			//
 			uint32_t new_el_offset = ctrl_free->_next;
+			// in rare cases the hash table may be frozen even if the LRU is not full
+			uint64_t store_stat = this-> store_in_hash(hash64,new_el_offset);
+			if ( store_stat == UINT64_MAX ) {
+				return(UINT32_MAX);
+			}
+
 			LRU_element *new_el = (LRU_element *)(start + new_el_offset);
 			ctrl_free->_next = new_el->_next;
         	//
@@ -257,11 +263,11 @@ class LRU_cache {
 			size_t cpsz = min(this->_record_size,strlen(data));
 			memcpy(store_el,data,cpsz);
 			//
-			this-> store_in_hash(hash64,new_el_offset);
 			_count++;
 			if ( _count_free > 0 ) _count_free--;
 			return(new_el_offset);
 	    }
+
 
 		// get_el
 		uint8_t get_el(uint32_t offset,char *buffer) {
@@ -349,14 +355,15 @@ class LRU_cache {
 
 		}
 
-		void store_in_hash(uint64_t key64,uint32_t new_el_offset) {
+		uint64_t store_in_hash(uint64_t key64,uint32_t new_el_offset) {
 			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				_local_hash_table[key64] = new_el_offset;
 			} else {
-				//uint64_t result =  
-				_hmap_i->store(key64,new_el_offset);
+				uint64_t result = _hmap_i->store(key64,new_el_offset); //UINT64_MAX
 				//count << "store_in_hash: " << result << endl;
+				return result;
 			}
+			return 0;
 		}
 
 
