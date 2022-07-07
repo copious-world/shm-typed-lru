@@ -374,6 +374,8 @@ namespace node_shm {
 	 */
 	NAN_METHOD(run_lru_eviction);
 	NAN_METHOD(run_lru_eviction_get_values);
+	NAN_METHOD(run_lru_targeted_eviction_get_values);
+
 
 	NAN_METHOD(debug_dump_list);
 

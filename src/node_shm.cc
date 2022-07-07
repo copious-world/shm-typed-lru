@@ -667,11 +667,12 @@ namespace node_shm {
 	NAN_METHOD(set_el)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();
-		uint32_t index = Nan::To<uint32_t>(info[2]).FromJust();
+		uint32_t hash_bucket = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t full_hash = Nan::To<uint32_t>(info[2]).FromJust();
 		Utf8String data_arg(info[3]);
 		//
-		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+		// originally full_hash is the whole 32 bit hash and hash_bucket is the modulus of it by the number of buckets
+		uint64_t hash64 = (((uint64_t)full_hash << HALF) | (uint64_t)hash_bucket);
 		//
 
 		// First check to see if a buffer was every allocated
@@ -856,9 +857,9 @@ namespace node_shm {
 	NAN_METHOD(del_key)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();
-		uint32_t index = Nan::To<uint32_t>(info[2]).FromJust();
-		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();		// bucket index
+		uint32_t full_hash = Nan::To<uint32_t>(info[2]).FromJust();
+		uint64_t hash64 = (((uint64_t)full_hash << HALF) | (uint64_t)hash);
 		//
 		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
 		if ( lru_cache == nullptr ) {
@@ -1017,6 +1018,46 @@ namespace node_shm {
 			time_t time_shift = epoch_ms();
 			time_shift -= cutoff;
 			lru_cache->evict_least_used_to_value_map(time_shift,max_evict,evict_map);
+
+			//string test = map_maker_destruct(evict_map);
+			//cout << test << endl;
+
+			Local<Object> jsObject = Nan::New<Object>();
+			js_map_maker_destruct(evict_map,jsObject);
+			info.GetReturnValue().Set(jsObject);
+		}
+	}
+
+	NAN_METHOD(run_lru_targeted_eviction_get_values)  {
+		Nan::HandleScope scope;
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
+		time_t cutoff = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t max_evict_b = Nan::To<uint32_t>(info[2]).FromJust();
+		//
+		uint32_t hash_bucket = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t original_hash = Nan::To<uint32_t>(info[2]).FromJust();
+		//
+		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)original_hash);
+
+		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
+		if ( lru_cache == nullptr ) {
+			if ( shmCheckKey(key) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			map<uint64_t,char *> evict_map;
+			uint8_t max_evict = (uint8_t)(max_evict_b);
+			time_t time_shift = epoch_ms();
+			time_shift -= cutoff;
+			//
+			uint8_t evict_count = lru_cache->evict_least_used_near_hash(hash_bucket,time_shift,max_evict,evict_map);
+			//
+			if ( evict_count < max_evict ) {
+				uint8_t remaining = max_evict - evict_count;
+				lru_cache->evict_least_used_to_value_map(time_shift,remaining,evict_map);
+			}
 
 			//string test = map_maker_destruct(evict_map);
 			//cout << test << endl;

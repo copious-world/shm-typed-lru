@@ -28,6 +28,8 @@ using namespace std;
 
 using namespace std::chrono;
 
+
+#define MAX_BUCKET_FLUSH 12
 /*
 auto ms_since_epoch(std::int64_t m){
   return std::chrono::system_clock::from_time_t(time_t{0})+std::chrono::milliseconds(m);
@@ -240,7 +242,7 @@ class LRU_cache {
 			//
 			uint32_t new_el_offset = ctrl_free->_next;
 			// in rare cases the hash table may be frozen even if the LRU is not full
-			uint64_t store_stat = this-> store_in_hash(hash64,new_el_offset);
+			uint64_t store_stat = this->store_in_hash(hash64,new_el_offset);
 			if ( store_stat == UINT64_MAX ) {
 				return(UINT32_MAX);
 			}
@@ -279,6 +281,17 @@ class LRU_cache {
 			memcpy(buffer,store_data,this->_record_size);
 			if ( this->touch(stored,offset) ) return(0);
 			return(1);
+		}
+
+		// get_el_untouched
+		uint8_t get_el_untouched(uint32_t offset,char *buffer) {
+			if ( !this->check_offset(offset) ) return(2);
+			//
+			uint8_t *start = _region;
+			LRU_element *stored = (LRU_element *)(start + offset);
+			char *store_data = (char *)(stored + 1);
+			memcpy(buffer,store_data,this->_record_size);
+			return(0);
 		}
 
 		// update_el
@@ -374,10 +387,7 @@ class LRU_cache {
 					return(_local_hash_table[key]);
 				}
 			} else {
-//count << "check_for_hash> KEY: " << key << " ";
 				uint32_t result = _hmap_i->get(key);
-//count << " result: " << result << endl;
-//count << "-------------------------------check_for_hash-------" << endl;
 				if ( result != 0 ) return(result);
 			}
 			return(UINT32_MAX);
@@ -418,10 +428,47 @@ class LRU_cache {
 				uint64_t hash = stored->_hash;
 				test_time = stored->_when;
 				char *buffer = new char[this->record_size()];
-				this->get_el(prev_off,buffer);
+				this->get_el_untouched(prev_off,buffer);
 				this->del_el(prev_off);
 				ev_map[hash] = buffer;
 			} while ( (test_time < cutoff) && (ev_count < max_evict) );
+		}
+
+		uint8_t evict_least_used_near_hash(uint32_t hash,time_t cutoff,uint8_t max_evict,map<uint64_t,char *> &ev_map) {
+			//
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
+				return 0;
+			} else {
+				uint32_t xs[32];
+				uint8_t count = _hmap_i->get_bucket(hash, xs);
+				//
+				uint8_t *start = _region;
+				size_t step = _step;
+				LRU_element *ctrl_tail = (LRU_element *)(start + step);
+				time_t test_time = 0;
+				uint8_t ev_count = 0;
+				uint64_t last_hash = 0;
+				//
+				uint8_t result = 0;
+				if ( count > 0 ) {
+					for ( uint8_t i = 0; i < count; i++ ) {
+						uint32_t el_offset = xs[i];
+						//
+						LRU_element *stored = (LRU_element *)(start + el_offset);
+						uint64_t hash = stored->_hash;
+						test_time = stored->_when;
+						if ( ((test_time < cutoff) || (ev_count < max_evict)) && (result < MAX_BUCKET_FLUSH) ) {
+							char *buffer = new char[this->record_size()];
+							this->get_el_untouched(el_offset,buffer);
+							this->del_el(el_offset);
+							ev_map[hash] = buffer;
+							result++;
+						}
+					}
+				}
+				return result;
+			}
+
 		}
 
 

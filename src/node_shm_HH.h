@@ -55,7 +55,7 @@ typedef unsigned long ulong;
 typedef struct HHASH {
   uint32_t _neighbor;		// Number of elements in a neighborhood
   uint32_t _count;			// count of elements contained an any time
-  uint32_t _max_n;			// max elements that can be container
+  uint32_t _max_n;			// max elements that can be in a container
 } HHash;
 
 
@@ -131,6 +131,21 @@ class HH_map : public HMap_interface {
 			return get_hh_map(T, key);
 		}
 
+		// bucket probing
+		// 
+		uint8_t get_bucket(uint32_t h, uint32_t xs[32]) {
+			HHash *T = (HHash *)_region;
+			uint8_t count = 0;
+			uint32_t i = _succ_hh_hash(T, h, 0);
+			while ( i != UINT32_MAX ) {
+				uint64_t x = get_val_at_hh_hash(T, h, i);  // get ith value matching this hash (collision)
+				xs[count++] = (uint32_t)((x >> HALF) & HASH_MASK);
+				i = _succ_hh_hash(T, h, i + 1);  // increment i in some sense (skip unallocated holes)
+			}
+			return count;	// no value  (values will always be positive, perhaps a hash or'ed onto a 0 value)
+		}
+
+
 		// del
 		uint32_t del(uint64_t key) {
 			HHash *T = (HHash *)_region;
@@ -153,6 +168,7 @@ class HH_map : public HMap_interface {
 			h = (h % N);
 			return _succ(h, i);
 		}
+
 
 /*		// these are for testing purposes only
 		uint32_t _next_T(uint32_t _H, uint32_t i) {
@@ -186,7 +202,6 @@ cout << endl;
 			return jk;
 		}
 */
-
 
 		void del_hh_hash(HHash *T, uint32_t h, uint32_t i) {
 			uint32_t *buffer = _region_H;
@@ -261,10 +276,10 @@ cout << endl;
 		}
 
 		uint32_t _succ(uint32_t h, uint32_t i) {
-			uint32_t *buffer = _region_H;
-			uint32_t H = buffer[h];
-  			if ( GET(H, i) ) return i;		// look at the control bits of the test position... see if the position is set.
-  			return _next(H, i);			// otherwise, what's next...
+			uint32_t *buffer = _region_H;		// the binary pattern
+			uint32_t H = buffer[h];				// the one for the bucket
+   			if ( GET(H, i) ) return i;			// look at the control bits of the test position... see if the position is set.
+  			return _next(H, i);					// otherwise, what's next...
 		}
 
 		void _swap(HHash *T, uint32_t h, uint32_t i, uint32_t j) {
@@ -337,22 +352,21 @@ cout << endl;
 					if (kill) del_hh_hash(T, h, i);
 					return x;
 				}
-				i = _succ_hh_hash(T, h, i + 1);  // increment i in some sense 
+				i = _succ_hh_hash(T, h, i + 1);  // increment i in some sense (skip unallocated holes)
 			}
 			return 0;		// no value  (values will always be positive, perhaps a hash or'ed onto a 0 value)
 		}
 
+
 		// ---- ---- ---- ---- ---- ---- ----
-		bool _cmp(uint64_t k, uint64_t x) {
-//cout << "_cmp: k: " << k << " x: " << x << " ";
+		bool _cmp(uint64_t k, uint64_t x) {		// compares the bottom part of the workds
 			bool eq = ((HASH_MASK & k) == (HASH_MASK & x));
-//cout << "eq: " << eq << endl;
-			return(eq); // ????
+			return(eq); //
 		}
 
 		bool put_hh_set(HHash *T, uint32_t h, uint64_t key_val) {
 			if ( key_val == 0 ) return 0;		// cannot store zero values
-			if ( get_hh_set(T, h, key_val) != 0 ) return (true);  // found, do not duplicate ... _cpm has been called
+			if ( get_hh_set(T, h, (uint32_t)key_val) != 0 ) return (true);  // found, do not duplicate ... _cmp has been called
 			if ( put_hh_hash(T, h, key_val)) return (true); // success
 			// not implementing resize
 			return (false);
@@ -366,6 +380,7 @@ cout << endl;
 			bool flag_delete = false;
 			return hunt_hash_set(T, hash, key_null, flag_delete);
 		}
+
 		uint64_t del_hh_set(HHash *T, uint32_t hash, uint32_t key) { 
 			uint64_t zero = 0;
 			uint64_t key_null = (zero | (uint64_t)key); // hopefully this explains it... 
@@ -395,13 +410,14 @@ cout << endl;
 
 		uint32_t get_hh_map(HHash *T, uint64_t key) { 
 			 // UNLOADED
-			uint32_t element_diff = (uint32_t)((key >> HALF) & HASH_MASK);
+			uint32_t element_diff = (uint32_t)((key >> HALF) & HASH_MASK);  // just unloads it (was index)
 			uint32_t hash = (uint32_t)(key & HASH_MASK);
 //cout << "get_hh_map>> element_diff: " << element_diff << " hash: " << hash << " ";
 //cout << " _region_H[hash] " << _region_H[hash] << " _region_V[hash]  "  << _region_V[hash]  << endl;
 
 			return (uint32_t)(get_hh_set(T, hash, element_diff) >> HALF); 
 		}
+
 		uint32_t del_hh_map(HHash *T, uint64_t key) {
 			 // UNLOADED
 			uint32_t element_diff = (uint32_t)((key >> HALF) & HASH_MASK);
