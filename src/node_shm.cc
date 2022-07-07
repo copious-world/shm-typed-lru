@@ -1034,8 +1034,8 @@ namespace node_shm {
 		time_t cutoff = Nan::To<uint32_t>(info[1]).FromJust();
 		uint32_t max_evict_b = Nan::To<uint32_t>(info[2]).FromJust();
 		//
-		uint32_t hash_bucket = Nan::To<uint32_t>(info[1]).FromJust();
-		uint32_t original_hash = Nan::To<uint32_t>(info[2]).FromJust();
+		uint32_t hash_bucket = Nan::To<uint32_t>(info[3]).FromJust();
+		uint32_t original_hash = Nan::To<uint32_t>(info[4]).FromJust();
 		//
 		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)original_hash);
 
