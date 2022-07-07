@@ -235,6 +235,12 @@ function run_lru_eviction_get_values(key,cutoff_time,max_evictions) {
 }
 
 
+function run_lru_targeted_eviction_get_values(key,cutoff_time,max_evictions,hh_hash,index) {
+	return shm.run_lru_targeted_eviction_get_values(key,cutoff_time,max_evictions,hh_hash,index)
+}
+
+
+
 function set_share_key(key,index,share_key) {
 	return shm.set_share_key(key,index,share_key)
 }
@@ -310,6 +316,8 @@ module.exports.reload_hash_map = reload_hash_map;
 module.exports.reload_hash_map_update = reload_hash_map_update;
 module.exports.run_lru_eviction = run_lru_eviction;
 module.exports.run_lru_eviction_get_values = run_lru_eviction_get_values;
+module.exports.run_lru_targeted_eviction_get_values = run_lru_targeted_eviction_get_values
+
 module.exports.set_share_key = set_share_key;
 //
 module.exports.debug_dump_list = debug_dump_list;
