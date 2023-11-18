@@ -666,9 +666,9 @@ namespace node_shm {
 	//
 	NAN_METHOD(set_el)  {
 		Nan::HandleScope scope;
-		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		uint32_t hash_bucket = Nan::To<uint32_t>(info[1]).FromJust();
-		uint32_t full_hash = Nan::To<uint32_t>(info[2]).FromJust();
+		key_t key = Nan::To<uint32_t>(info[0]).FromJust();				// key to the shared memory segment
+		uint32_t hash_bucket = Nan::To<uint32_t>(info[1]).FromJust();	// hash modulus the number of buckets (hence a bucket)
+		uint32_t full_hash = Nan::To<uint32_t>(info[2]).FromJust();		// hash of the value
 		Utf8String data_arg(info[3]);
 		//
 		// originally full_hash is the whole 32 bit hash and hash_bucket is the modulus of it by the number of buckets
@@ -1069,6 +1069,58 @@ namespace node_shm {
 	}
 
 
+	/**
+	 * 
+	*/
+	NAN_METHOD(run_lru_eviction_move_values)  {
+		Nan::HandleScope scope;
+		key_t key1 = Nan::To<uint32_t>(info[0]).FromJust();
+		key_t key2 = Nan::To<uint32_t>(info[0]).FromJust();
+		time_t cutoff = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t max_evict_b = Nan::To<uint32_t>(info[2]).FromJust();
+		//
+		LRU_cache *from_lru_cache = g_LRU_caches_per_segment[key1];
+		LRU_cache *to_lru_cache = g_LRU_caches_per_segment[key2];
+		if ( from_lru_cache == nullptr ) {
+			if ( shmCheckKey(key1) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else if ( to_lru_cache == nullptr ) {
+			if ( shmCheckKey(key2) ) {
+				info.GetReturnValue().Set(Nan::New<Boolean>(false));
+			} else {
+				info.GetReturnValue().Set(Nan::New<Number>(-1));
+			}
+		} else {
+			map<uint64_t,char *> evict_map;
+			uint8_t max_evict = (uint8_t)(max_evict_b);
+			time_t time_shift = epoch_ms();
+			time_shift -= cutoff;
+			from_lru_cache->evict_least_used_to_value_map(time_shift,max_evict,evict_map);
+
+			map<uint64_t,uint32_t> offsets;
+
+			for ( auto p : evict_map ) {
+				uint64_t hash64 = p->first;
+				char *data = p->second;
+				uint32_t offset = to_lru_cache->check_for_hash(hash64);
+				if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
+					offset = to_lru_cache->add_el(data,hash64);
+					if ( offset != UINT32_MAX ) {
+						offsets[hash64] = offset
+					}
+				}
+			}
+
+			Local<Object> jsObject = Nan::New<Object>();
+			js_map_maker_destruct(offsets,jsObject);
+			info.GetReturnValue().Set(jsObject);
+		}
+	}
+
+
 	NAN_METHOD(debug_dump_list)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
@@ -1174,13 +1226,14 @@ namespace node_shm {
 				info.GetReturnValue().Set(Nan::New<Number>(-1));
 			}
 		} else {
-			if ( mtx->try_lock() ) {
+			if ( mtx->try_lock() ) {  // returns true if the lock is acquired
 				info.GetReturnValue().Set(Nan::New<Boolean>(true));
-			}
-			if ( mtx->ok() ) {
-				info.GetReturnValue().Set(Nan::New<Boolean>(false));
 			} else {
-				info.GetReturnValue().Set(Nan::New<Number>(-1));
+				if ( mtx->ok() ) {  // the lock aquizition failed but the reason was useful (EBUSY)
+					info.GetReturnValue().Set(Nan::New<Boolean>(false));
+				} else {  // the lock aquizition failed but the reason indicated bad state
+					info.GetReturnValue().Set(Nan::New<Number>(-1));
+				}
 			}
 		}
 	}
@@ -1268,7 +1321,8 @@ namespace node_shm {
 		//
 		Nan::SetMethod(target, "run_lru_eviction", run_lru_eviction);
 		Nan::SetMethod(target, "run_lru_eviction_get_values", run_lru_eviction_get_values);
-
+		Nan::SetMethod(target, "run_lru_eviction_move_values", run_lru_eviction_move_values);
+		
 		// ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 
 		Nan::SetMethod(target, "init_mutex", init_mutex);

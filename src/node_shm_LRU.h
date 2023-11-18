@@ -206,7 +206,8 @@ class LRU_cache {
 
 		}
 
-		// set_hash_impl
+		// set_hash_impl - called by initHopScotch
+		//
 		void set_hash_impl(HMap_interface *hmap) {
 			_hmap_i = hmap;
 		}
@@ -242,7 +243,9 @@ class LRU_cache {
 			//
 			uint32_t new_el_offset = ctrl_free->_next;
 			// in rare cases the hash table may be frozen even if the LRU is not full
-			uint64_t store_stat = this->store_in_hash(hash64,new_el_offset);
+			//
+			uint64_t store_stat = this->store_in_hash(hash64,new_el_offset);  // STORE
+			//
 			if ( store_stat == UINT64_MAX ) {
 				return(UINT32_MAX);
 			}
@@ -381,6 +384,7 @@ class LRU_cache {
 
 
 		// check_for_hash
+		// either returns an offset to the data or return the UINT32_MAX.  (4,294,967,295)
 		uint32_t check_for_hash(uint64_t key) {
 			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
 				if ( _local_hash_table.find(key) != _local_hash_table.end() ) {

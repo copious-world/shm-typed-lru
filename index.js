@@ -141,10 +141,22 @@ function detachAll() {
 	return shm.detachAll();
 }
 
+/**
+ * 
+ * @returns {Number}
+ */
 function _keyGen() {
 	return keyMin + Math.floor(Math.random() * keyMax);
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} record_size 
+ * @param {Number} region_size 
+ * @param {boolean} i_am_initializer 
+ * @returns {Number}
+ */
 function initLRU(key,record_size,region_size,i_am_initializer) {
 	if ( i_am_initializer === undefined ) {
 		i_am_initializer = true
@@ -152,61 +164,134 @@ function initLRU(key,record_size,region_size,i_am_initializer) {
 	return shm.initLRU(key,record_size,region_size,i_am_initializer)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns 
+ */
 function getSegmentSize(key) {
 	return shm.getSegSize(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns {Number}
+ */
 function lru_max_count(key) {
 	return shm.max_count(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns {Number}
+ */
 function current_count(key) {
 	return shm.current_count(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns  {Number}
+ */
 function free_count(key) {
 	return shm.free_count(key)
 }
 
+/**
+ * 
+ * @returns {Number}
+ */
 function epoch_time() {
 	return shm.epoch_time()
 }
 
 
+/**
+ * Internally, this will create a key out of the hash and the index.
+ * If the hash is in the table, `set` will attempt to update the value and the offset to the data in the memory section will be returned.
+ * If the hash is not in the table, `set` will attempt to put the value in the table and return the offset to th data in the memory section.
+ * 
+ * @param {Number} key 
+ * @param {string} value 
+ * @param {Number} hh_hash - a 32 bit hash of the value
+ * @param {Number} index   - a 32 number equal to the hash modulus the number of possible buckets in the table or just a number between zero and count depending on the application
+ * @returns {Number|boolean} - retuns the offset of the element into the share memory region, or false if the element cannot be inserted
+ */
 function set(key,value,hh_hash,index) {
 //console.log("Set: ",hh_hash,index)
 	if ( index == undefined ) index = 0
 	return shm.set_el(key,hh_hash,index,value)
 }
 
-
-
+/**
+ * 
+ * @param {Number} key 
+ * @param {Array} value_hash_array 
+ * @returns {Array}
+ */
 function set_many(key,value_hash_array) {
 	if ( !(Array.isArray(value_hash_array)) ) return false
 	return shm.set_many(key,value_hash_array)
 }
 	
-
+/**
+ * Finds the memory segment and returns the item stored as a string at the offset which is index.
+ * 
+ * @param {Number} key - a key identifying the shared memory segment
+ * @param {Number} index - a byte offset into the memory segment
+ * @returns {string|Number}  - returns a number on error otherwise it is the stored string, the value at the hash index.
+ */
 function get_el(key,index) {
 	return shm.get_el(key,index)
 }
 
-
+/**
+ * `get_el_hash` transates the hash string to the storage offset in the shared memory table.
+ *  Then, it obtains the memory segment and returns the string stored at that asset.
+ * 
+ * @param {Number} key 
+ * @param {Number} hh_hash - the 32 bit hash of the stored value. 
+ * @param {Number} index - the hopscotch offset returned when the value was stored 
+ * @returns {string|Number} - returns a number on error otherwise it is the stored string, the value at the hash index.
+ */
 function get_el_hash(key,hh_hash,index) {
 	if ( index == undefined ) index = 0
 	return shm.get_el_hash(key,hh_hash,index)
 }
 
-
+/**
+ * Deletes an item from the shared memory table without managing the hash scheme.
+ * 
+ * @param {Number} key - a key identifying the shared memory segment
+ * @param {Number} index - a byte offset into the memory segment
+ * @returns {string|Number}  - returns a number on error otherwise it is the stored string, the value at the hash index.
+ */
 function del_el(key,index) {
 	return shm.del_el(key,index)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} hh_hash - the 32 bit hash of the stored value. 
+ * @param {Number} index - the hopscotch offset returned when the value was stored 
+ * @returns 
+ */
 function del_key(key,hh_hash,index) {
 	if ( index == undefined ) index = 0
 	return shm.del_key(key,hh_hash,index)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} hh_hash - the 32 bit hash of the stored value. 
+ * @param {Number} index - the hopscotch offset returned when the value was stored 
+ * @returns 
+ */
 function remove_key(key,hh_hash,index) {
 	if ( index == undefined ) index = 0
 	return shm.remove_key(key,hh_hash,index)
@@ -266,6 +351,20 @@ function init_mutex(key,initializer) {
 	return shm.init_mutex(key,initializer)
 }
 
+
+
+/**
+ * 
+ * Calls the posix `pthread_mutex_trylock` method. 
+ * If the call is able to aquire the lock, thie method returns true.
+ * If the method fails to acquire the lock without abnormal error, this method returns false.
+ * Otherwise, it returns a negative number indicating an error state. 
+ * * -3 -> the key matches a region in the OS, but the library has lost reference to it
+ * * -1 -> the key does not match a region and no such region is known or the posix call failed for a reason other than EBUSY
+ * 
+ * @param {Number} key - the key or `token` identifying the shared memory segment where the locks are stored
+ * @returns {Number|boolean}
+ */
 function try_lock(key) {
 	return shm.try_lock(key)
 }

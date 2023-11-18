@@ -234,9 +234,10 @@ cout << endl;
 			if ( (T->_count == N) || (v == 0) ) return(false);  // FULL
 			//
 			h = h % N;  // scale the hash .. make sure it indexes the array...
-			uint32_t d = _probe(T, h);  // a distance starting from h
+			uint32_t d = _probe(T, h);  // a distance starting from h (if wrapped, then past N)
 			if ( d == UINT32_MAX ) return(false); // the positions in the entire buffer are full.
 	//cout << "put_hh_hash: d> " << d;
+			//
 			uint32_t K =  T->_neighbor;
 			while ( d >= K ) {						// the number may be bigger than K. if wrapping, then bigger than N. 2N < UINT32_MAX.
 				uint32_t hd = MOD( (h + d), N );	// d is allowed to wrap around.
@@ -245,10 +246,10 @@ cout << endl;
 				if ( z == 0 ) return(false);			// could not find anything that could move. (Frozen at this point..)
 				// found a position that can be moved... (offset from h <= d closer to the neighborhood)
 				uint32_t j = z;
-				z = MOD((N + hd - z), N);			// hd - z is an (offset from h) < h + d or (h + z) < (h + d)
-				uint32_t i = _succ(z, 0);		// either this is moveable or there's another one.
-				_swap(T, z, i, j);
-				d = MOD( (N + z + i - h), N );
+				z = MOD((N + hd - z), N);		// hd - z is an (offset from h) < h + d or (h + z) < (h + d)  ... see hopscotch 
+				uint32_t i = _succ(z, 0);		// either this is moveable or there's another one. (checking the bitmap ...)
+				_swap(T, z, i, j);				// swap bits and values between i and j offsets within the bucket h
+				d = MOD( (N + z + i - h), N );  // N + z - (h - i) ... a new distance, should be less than before
 			}
 			//
 			uint32_t *buffer = _region_H;
@@ -282,6 +283,12 @@ cout << endl;
   			return _next(H, i);					// otherwise, what's next...
 		}
 
+		/**
+		 * Swap bits and values 
+		 * The bitmap is for the h'th bucket. And, i and j are bits within bitmap i'th and j'th.
+		 * 
+		 * i and j are used later as offsets from h when doing the value swap. 
+		*/
 		void _swap(HHash *T, uint32_t h, uint32_t i, uint32_t j) {
 			uint32_t *buffer = _region_H;
 			uint64_t *v_buffer = _region_V;
@@ -300,34 +307,50 @@ cout << endl;
 			v_buffer[j] = v;
 		}
 
-		// _probe -- search for a free space within a bucket
-		//		h : the bucket starts at h (an offset in _region_V)
+		/**
+		 *  _probe -- search for a free space within a bucket
+		 * 		h : the bucket starts at h (an offset in _region_V)
+		 * 
+		 *  zero in the value buffer means no entry, because values do not start at zero for the offsets 
+		 *  (free list header is at zero if not allocated list)
+		 * 
+		 * `_probe` wraps around search before h (bucket index) returns the larger value N + j if the wrap returns a position
+		 * 
+		 * @returns {uint32_t} distance of the bucket from h
+		*/
 		uint32_t _probe(HHash *T, uint32_t h) {   // value probe ... looking for zero
 			uint64_t *v_buffer = _region_V;
 			// // 
 			uint32_t N = T->_max_n;		// upper bound (count of elements in buffer)
 			//
 			// search in the bucket
-			for ( uint32_t i = 0; (h + i) < N; ++i ) {			// search forward to the end of the array (all the way even it its millions.)
-				uint64_t V = v_buffer[h + i];	// is this an empty slot? Usually, when the table is not very full.
-				if ( V == 0 ) return i;			// look no further
+			v_buffer += h;
+			for ( uint32_t i = h; i < N; ++i ) {			// search forward to the end of the array (all the way even it its millions.)
+				uint64_t V = *v_buffer++;	// is this an empty slot? Usually, when the table is not very full.
+				if ( V == 0 ) return (i-h);			// look no further
 			}
 			//
 			// look for anything starting at the beginning of the segment
 			// wrap... start searching from the start of all data...
+			v_buffer = _region_V;
 			for ( uint32_t j = 0; j < h ; ++j ) {
-				uint64_t V = v_buffer[j];	// is this an empty slot? Usually, when the table is not very full.
-				if ( V == 0 ) return (N + j);	// look no further
+				uint64_t V = *v_buffer++;	// is this an empty slot? Usually, when the table is not very full.
+				if ( V == 0 ) return (N + j - h);	// look no further (notice quasi modular addition)
 			}
 			return UINT32_MAX;  // this will be taken care of by a modulus in the caller
 		}
 
-		uint32_t _hop_scotch(HHash *T, uint32_t h) {  // return an index
+		/**
+		 * Look at one bit pattern after another from distance `d` shifted 'down' to h by K (as close as possible).
+		 * Loosen the restriction on the distance of the new buffer until K (the max) away from h is reached.
+		 * If something within K (for swapping) can be found return it, otherwise 0 (indicates frozen)
+		*/
+		uint32_t _hop_scotch(HHash *T, uint32_t hd) {  // return an index
 			uint32_t *buffer = _region_H;
 			uint32_t N = T->_max_n;
 			uint32_t K =  T->_neighbor;
 			for ( uint32_t i = (K - 1); i > 0; --i ) {
-				uint32_t hi = MOD(N + h - i, N);			// hop backwards towards the original hash position (h)...
+				uint32_t hi = MOD(N + hd - i, N);			// hop backwards towards the original hash position (h)...
 				uint32_t H = buffer[hi];
 				if ( (H != 0) && (((uint32_t)FFS(H)) < i) ) return i;	// count of trailing zeros less than offset from h
 			}

@@ -1,4 +1,4 @@
-##IPC shared memory LRU cache for Node.js  
+## IPC shared memory LRU cache for Node.js  
 
 ##### Based upon shm-typed-array with the following state of testing.
 
@@ -18,7 +18,7 @@ For shm-type-array, please refer to:
 
 # Purpose
 
-This node.js module provides a simple LRU for **fixed sized elements** residing in shared memory. It makes the LRU available to more tha one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
+This node.js module provides a simple LRU for **fixed sized elements** residing in shared memory. It makes the LRU available to more than one process. This module does not provide all of the communication that might take place between processes sharing an LRU. It makes the communication possible and manages the object that they share. Please see references to other modules for more features.
 
 Optionally, this module provides Hopscotch hashing for associating data with LRU indecies. If the Hopscotch hashing is used, it is shared between attached processes. Modules do not have to communicate about the hashes. There is no locking however, so the application needs to provide any necessary locks and signals.
 
@@ -553,7 +553,7 @@ The shm-typed-lru module is an LRU. Elements that reside to long in the shared m
 
 In a future version of this library, an optional listing of secondary slabs may be provided depending upon configuration.
 
-When the LRU becomes full, the module might move aging data into a second LRU, another managed memory and hash table pair. The older day may be searched when searches in the primary section fail.
+When the LRU becomes full, the module might move aging data into a second LRU, another managed memory and hash table pair. The older data may be searched when searches in the primary section fail.
 
 The seconday slabs may be removed when they become empty and the preasure on the primay slabs goes away.
 

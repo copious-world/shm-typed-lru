@@ -49,6 +49,10 @@ class MutexHolder {
 			}
 		}
 
+		/**
+		 * Called by the constructor if the `am_initializer` parameter is **true**.
+		 * Performs standard POSIX style mutex initizalization.
+		*/
 		void init_mutex(void *mutex_mem) {
 			//
 			_mutex_ptr = (pthread_mutex_t *)mutex_mem;
@@ -60,7 +64,7 @@ class MutexHolder {
 				_last_reason += strerror(result);
 				return;
 			}
-			result = pthread_mutexattr_setpshared(&_mutex_attributes,PTHREAD_PROCESS_SHARED);
+			result = pthread_mutexattr_setpshared(&_mutex_attributes,PTHREAD_PROCESS_SHARED);  // PTHREAD_MUTEX_RECURSIVE or PTHREAD_MUTEX_DEFAULT
 			if ( result != 0 ) {
 				_status = false;
 				_last_reason = "pthread_mutexattr_setpshared: ";
@@ -78,7 +82,13 @@ class MutexHolder {
 			//
 		}
 
+		/**
+		 * Calls the posix mutex try lock. Hence, if the thread is locked this will return
+		 * immediatly. If the mutex is locked, the status EBUSY will be returned to this method, and the method
+		 * will return **false** with the object `_status` set to true.
+		 */
 		bool try_lock() {
+			reset_status(void)
 			if ( _mutex_ptr == nullptr ) {
 				return(false);
 			}
@@ -97,6 +107,7 @@ class MutexHolder {
 		}
 
 		bool lock() {
+			reset_status(void)
 			if ( _mutex_ptr == nullptr ) {
 				return(false);
 			}
@@ -111,6 +122,7 @@ class MutexHolder {
 		}
 
 		bool unlock() {
+			reset_status(void)
 			if ( _mutex_ptr == nullptr ) {
 				return(false);
 			}
@@ -130,6 +142,10 @@ class MutexHolder {
 		//
 		bool ok(void) {
 			return _status;
+		}
+
+		void reset_status(void) {
+			_status = true;
 		}
 
 		string get_last_reason(void) {
@@ -375,7 +391,7 @@ namespace node_shm {
 	NAN_METHOD(run_lru_eviction);
 	NAN_METHOD(run_lru_eviction_get_values);
 	NAN_METHOD(run_lru_targeted_eviction_get_values);
-
+	NAN_METHOD(run_lru_eviction_move_values);
 
 	NAN_METHOD(debug_dump_list);
 
