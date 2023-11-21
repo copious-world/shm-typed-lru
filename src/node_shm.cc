@@ -30,8 +30,6 @@ namespace Buffer {
 	using v8::Uint32Array;
 	using v8::Float32Array;
 	using v8::Float64Array;
-	
-
 
 	MaybeLocal<Object> NewTyped(
 		Isolate* isolate, 
@@ -1103,20 +1101,18 @@ namespace node_shm {
 			map<uint64_t,uint32_t> offsets;
 
 			for ( auto p : evict_map ) {
-				uint64_t hash64 = p->first;
-				char *data = p->second;
+				uint64_t hash64 = p.first;
+				char *data = p.second;
 				uint32_t offset = to_lru_cache->check_for_hash(hash64);
 				if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
 					offset = to_lru_cache->add_el(data,hash64);
 					if ( offset != UINT32_MAX ) {
-						offsets[hash64] = offset
+						offsets[hash64] = offset;
 					}
 				}
 			}
-
-			Local<Object> jsObject = Nan::New<Object>();
-			js_map_maker_destruct(offsets,jsObject);
-			info.GetReturnValue().Set(jsObject);
+			//
+			info.GetReturnValue().Set(Nan::New<Boolean>(true));
 		}
 	}
 

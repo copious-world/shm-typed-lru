@@ -64,7 +64,7 @@ class MutexHolder {
 				_last_reason += strerror(result);
 				return;
 			}
-			result = pthread_mutexattr_setpshared(&_mutex_attributes,PTHREAD_PROCESS_SHARED);  // PTHREAD_MUTEX_RECURSIVE or PTHREAD_MUTEX_DEFAULT
+			result = pthread_mutexattr_setpshared(&_mutex_attributes,PTHREAD_PROCESS_SHARED);
 			if ( result != 0 ) {
 				_status = false;
 				_last_reason = "pthread_mutexattr_setpshared: ";
@@ -88,7 +88,7 @@ class MutexHolder {
 		 * will return **false** with the object `_status` set to true.
 		 */
 		bool try_lock() {
-			reset_status(void)
+			reset_status();
 			if ( _mutex_ptr == nullptr ) {
 				return(false);
 			}
@@ -107,7 +107,7 @@ class MutexHolder {
 		}
 
 		bool lock() {
-			reset_status(void)
+			reset_status();
 			if ( _mutex_ptr == nullptr ) {
 				return(false);
 			}
@@ -122,7 +122,7 @@ class MutexHolder {
 		}
 
 		bool unlock() {
-			reset_status(void)
+			reset_status();
 			if ( _mutex_ptr == nullptr ) {
 				return(false);
 			}

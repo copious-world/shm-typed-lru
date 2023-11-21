@@ -88,7 +88,7 @@ function create(count, typeKey /*= 'Buffer'*/, key /*= null*/) {
 		res = shm.get(key, count, shm.IPC_CREAT|shm.IPC_EXCL|perm, 0, type);
 	} else {
 		do {
-			key = _keyGen();
+			key = _keyGen();   // generate random numbers until a new one comes up.
 			res = shm.get(key, count, shm.IPC_CREAT|shm.IPC_EXCL|perm, 0, type);
 		} while(!res);
 	}
@@ -141,15 +141,14 @@ function detachAll() {
 	return shm.detachAll();
 }
 
-/**
- * 
- * @returns {Number}
- */
+
 function _keyGen() {
 	return keyMin + Math.floor(Math.random() * keyMax);
 }
 
 /**
+ * Calls the module initLRU
+ * 
  * 
  * @param {Number} key 
  * @param {Number} record_size 
@@ -167,7 +166,7 @@ function initLRU(key,record_size,region_size,i_am_initializer) {
 /**
  * 
  * @param {Number} key 
- * @returns 
+ * @returns {Number}
  */
 function getSegmentSize(key) {
 	return shm.getSegSize(key)
@@ -278,7 +277,7 @@ function del_el(key,index) {
  * @param {Number} key 
  * @param {Number} hh_hash - the 32 bit hash of the stored value. 
  * @param {Number} index - the hopscotch offset returned when the value was stored 
- * @returns 
+ * @returns {boolean}
  */
 function del_key(key,hh_hash,index) {
 	if ( index == undefined ) index = 0
@@ -290,42 +289,86 @@ function del_key(key,hh_hash,index) {
  * @param {Number} key 
  * @param {Number} hh_hash - the 32 bit hash of the stored value. 
  * @param {Number} index - the hopscotch offset returned when the value was stored 
- * @returns 
+ * @returns {boolean}
  */
 function remove_key(key,hh_hash,index) {
 	if ( index == undefined ) index = 0
 	return shm.remove_key(key,hh_hash,index)
 }
 
-
+/**
+ * 
+ * @param {Number} key 
+ * @returns {string}
+ */
 function get_last_reason(key) {
 	return shm.get_last_reason(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns {boolean}
+ */
 function reload_hash_map(key) {
 	return shm.reload_hash_map(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} share_key 
+ * @returns 
+ */
 function reload_hash_map_update(key,share_key) {
 	return shm.reload_hash_map_update(key,share_key)
 }
 
+
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} cutoff_time 
+ * @param {Number} max_evictions 
+ * @returns {object}
+ */
 function run_lru_eviction(key,cutoff_time,max_evictions) {
 	return shm.run_lru_eviction(key,cutoff_time,max_evictions)
 }
 
-
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} cutoff_time 
+ * @param {Number} max_evictions 
+ * @returns {object}
+ */
 function run_lru_eviction_get_values(key,cutoff_time,max_evictions) {
 	return shm.run_lru_eviction_get_values(key,cutoff_time,max_evictions)
 }
 
-
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} cutoff_time 
+ * @param {Number} max_evictions 
+ * @returns {object}
+ * @param {Number} hh_hash 
+ * @param {Number} index 
+ * @returns 
+ */
 function run_lru_targeted_eviction_get_values(key,cutoff_time,max_evictions,hh_hash,index) {
 	return shm.run_lru_targeted_eviction_get_values(key,cutoff_time,max_evictions,hh_hash,index)
 }
 
 
-
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} index 
+ * @param {Number} share_key 
+ * @returns {boolean}
+ */
 function set_share_key(key,index,share_key) {
 	return shm.set_share_key(key,index,share_key)
 }
@@ -339,6 +382,14 @@ function debug_dump_list(key,backwards) {
 }
 
 // // // // // // // 
+/**
+ * 
+ * @param {Number} key 
+ * @param {Number} lru_key 
+ * @param {boolean} am_initializer 
+ * @param {Number} max_element_count 
+ * @returns {boolean|Number}
+ */
 function initHopScotch(key,lru_key,am_initializer,max_element_count) {
 	return shm.initHopScotch(key,lru_key,am_initializer,max_element_count)
 }
@@ -347,6 +398,12 @@ function initHopScotch(key,lru_key,am_initializer,max_element_count) {
 
 // ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ---- ----
 
+/**
+ * 
+ * @param {Number} key 
+ * @param {boolean} initializer - true if the calling process creates and initializes the mutex, false otherwise
+ * @returns {boolean|Number}
+ */
 function init_mutex(key,initializer) {
 	return shm.init_mutex(key,initializer)
 }
@@ -369,14 +426,29 @@ function try_lock(key) {
 	return shm.try_lock(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns {boolean|Number}
+ */
 function lock(key) {
 	return shm.lock(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns {boolean|Number}
+ */
 function unlock(key) {
 	return shm.unlock(key)
 }
 
+/**
+ * 
+ * @param {Number} key 
+ * @returns {string}
+ */
 function get_last_mutex_reason(key) {
 	return shm.get_last_mutex_reason(key)
 }
