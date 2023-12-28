@@ -80,7 +80,7 @@ class HH_map : public HMap_interface {
 
 		// setup_region -- part of initialization if the process is the intiator..
 		void setup_region(bool am_initializer,uint8_t header_size,uint32_t max_count) {
-			//
+			// ----
 			uint8_t *start = _region;
 			HHash *T = (HHash *)start;
 			//
