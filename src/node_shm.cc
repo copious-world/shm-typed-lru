@@ -670,7 +670,7 @@ namespace node_shm {
 		Utf8String data_arg(info[3]);
 		//
 		// originally full_hash is the whole 32 bit hash and hash_bucket is the modulus of it by the number of buckets
-		uint64_t hash64 = (((uint64_t)full_hash << HALF) | (uint64_t)hash_bucket);
+		// uint64_t hash64 = (((uint64_t)full_hash << HALF) | (uint64_t)hash_bucket);
 		//
 
 		// First check to see if a buffer was every allocated
@@ -684,9 +684,9 @@ namespace node_shm {
 		} else {
 			char *data = *data_arg;
 			// is the key already assigned ?  >> check_for_hash 
-			uint32_t offset = lru_cache->check_for_hash(hash64);
+			uint32_t offset = lru_cache->check_for_hash(full_hash,hash_bucket);
 			if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
-				offset = lru_cache->add_el(data,hash64);
+				offset = lru_cache->add_el(data,full_hash,hash_bucket);
 				if ( offset == UINT32_MAX ) {
 					info.GetReturnValue().Set(Nan::New<Boolean>(false));
 				} else {
@@ -731,16 +731,16 @@ namespace node_shm {
 			//
 			for (uint16_t i = 0; i < n; i++) {		
 				Local<v8::Array> jsSubArray = Local<Array>::Cast(jsArray->Get(context, i).ToLocalChecked());
-        		uint32_t hash = jsSubArray->Get(context, 0).ToLocalChecked()->Uint32Value(context).FromJust();
-        		uint32_t index = jsSubArray->Get(context, 1).ToLocalChecked()->Uint32Value(context).FromJust();
+        		uint32_t full_hash = jsSubArray->Get(context, 0).ToLocalChecked()->Uint32Value(context).FromJust();
+        		uint32_t hash_bucket = jsSubArray->Get(context, 1).ToLocalChecked()->Uint32Value(context).FromJust();
 				Utf8String data_arg(jsSubArray->Get(context, 2).ToLocalChecked());
-				uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
+				//uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
 				char *data = *data_arg;
 	//cout << data << endl;
 				// is the key already assigned ?  >> check_for_hash 
-				uint32_t offset = lru_cache->check_for_hash(hash64);
+				uint32_t offset = lru_cache->check_for_hash(full_hash,hash_bucket);
 				if ( offset == UINT32_MAX ) {  // no -- go ahead and add a new element  >> add_el
-					offset = lru_cache->add_el(data,hash64);
+					offset = lru_cache->add_el(data,full_hash,hash_bucket);
 					if ( offset == UINT32_MAX ) {
 						Nan::Set(jsArrayResults, i, Nan::New<Boolean>(false));
 					} else {
@@ -797,12 +797,10 @@ namespace node_shm {
 	NAN_METHOD(get_el_hash)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();
-		uint32_t index = Nan::To<uint32_t>(info[2]).FromJust();
+		uint32_t full_hash = Nan::To<uint32_t>(info[1]).FromJust();
+		uint32_t hash_bucket = Nan::To<uint32_t>(info[2]).FromJust();
 		//
-		uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
-		//
-//cout << "get h> " << hash << " i> " << index << " " << hash64 << endl;
+		// uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
 		//
 		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
 		if ( lru_cache == nullptr ) {
@@ -812,7 +810,7 @@ namespace node_shm {
 				info.GetReturnValue().Set(Nan::New<Number>(-1));
 			}
 		} else {
-			uint32_t index = lru_cache->check_for_hash(hash64);
+			uint32_t index = lru_cache->check_for_hash(full_hash,hash_bucket);
 			if ( index == UINT32_MAX ) {
 				info.GetReturnValue().Set(Nan::New<Number>(-2));
 			} else {
@@ -855,9 +853,10 @@ namespace node_shm {
 	NAN_METHOD(del_key)  {
 		Nan::HandleScope scope;
 		key_t key = Nan::To<uint32_t>(info[0]).FromJust();
-		uint32_t hash = Nan::To<uint32_t>(info[1]).FromJust();		// bucket index
-		uint32_t full_hash = Nan::To<uint32_t>(info[2]).FromJust();
-		uint64_t hash64 = (((uint64_t)full_hash << HALF) | (uint64_t)hash);
+		uint32_t full_hash = Nan::To<uint32_t>(info[1]).FromJust();		// bucket index
+		uint32_t hash_bucket = Nan::To<uint32_t>(info[2]).FromJust();
+		//
+		// uint64_t hash64 = (((uint64_t)index << HALF) | (uint64_t)hash);
 		//
 		LRU_cache *lru_cache = g_LRU_caches_per_segment[key];
 		if ( lru_cache == nullptr ) {
@@ -867,7 +866,7 @@ namespace node_shm {
 				info.GetReturnValue().Set(Nan::New<Number>(-1));
 			}
 		} else {
-			uint32_t index = lru_cache->check_for_hash(hash64);
+			uint32_t index = lru_cache->check_for_hash(full_hash,hash_bucket);
 			if ( index == UINT32_MAX ) {
 				info.GetReturnValue().Set(Nan::New<Number>(-2));
 			} else {

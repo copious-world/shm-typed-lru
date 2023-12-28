@@ -49,6 +49,7 @@ const uint64_t HASH_MASK = (((uint64_t)0) | ~(uint32_t)(0));  // 32 bits
 //
 #define BitsPerByte 8
 #define HALF (sizeof(uint32_t)*BitsPerByte)  // should be 32
+#define QUARTER (sizeof(uint16_t)*BitsPerByte) // should be 16
 //
 typedef unsigned long ulong;
 
@@ -107,16 +108,23 @@ class HH_map : public HMap_interface {
 			return(this->_status);
 		}
 
-		//  store
-		uint64_t store(uint64_t loaded_hash, uint32_t v_value) {
-			uint32_t element_diff = (uint32_t)((loaded_hash >> HALF) & HASH_MASK);  // JS usage -- this is the index
-			uint32_t hash = (uint32_t)(loaded_hash & HASH_MASK);				// JS usage -- this is the base hash
-			//
-//cout << "store>> element_diff: " << element_diff << " hash: " << hash << endl;
+		//  store    //  hash_bucket, full_hash,   el_key = full_hash
+		uint64_t store(uint32_t hash_bucket, uint32_t el_key, uint32_t v_value) {
+			if ( v_value == 0 ) return false;
 			//
 			HHash *T = (HHash *)_region;
-			return put_hh_map(T,hash,element_diff,v_value);
+			//
+			uint64_t loaded_value = (((uint64_t)v_value) << HALF) | el_key;
+			bool put_ok = put_hh_hash(T, hash_bucket, loaded_value);
+			if ( put_ok ) {
+				uint64_t loaded_key = (((uint64_t)el_key) << HALF) | hash_bucket; // LOADED
+				return(loaded_key);
+			} else {
+				return(UINT64_MAX);
+			}
 		}
+
+
 
 		// get
 		uint32_t get(uint64_t key) {
@@ -130,6 +138,14 @@ class HH_map : public HMap_interface {
 //cout << "get>> out: " << out << endl;
 			return get_hh_map(T, key);
 		}
+
+		// get
+		uint32_t get(uint32_t key,uint32_t bucket) {  // full_hash,hash_bucket
+			HHash *T = (HHash *)_region;
+			return (uint32_t)(get_hh_set(T, key, bucket) >> HALF);  // the value is in the top half of the 64 bits.
+		}
+
+		
 
 		// bucket probing
 		// 
@@ -162,46 +178,30 @@ class HH_map : public HMap_interface {
 
 	private:
  
-		uint32_t _succ_hh_hash(HHash *T, uint32_t h, uint32_t i) {
-			if ( i == 32 ) return(UINT32_MAX);
+
+		// operate on the hash bucket bits
+		uint32_t _next(uint32_t _H, uint32_t i) {
+  			uint32_t H = _H & (~0 << i);
+  			if ( H == 0 ) return UINT32_MAX;  // like -1
+  			return FFS(H);	// return the count of trailing zeros
+		}
+
+		// operate on the hash bucket bits  -- find the next set bit
+		uint32_t _succ(uint32_t h_bucket, uint32_t i) {
+			uint32_t *bit_mask_buckets = _region_H;		// the binary pattern storage area
+			uint32_t H = bit_mask_buckets[h_bucket];	// the one for the bucket
+   			if ( GET(H, i) ) return i;			// look at the control bits of the test position... see if the position is set.
+  			return _next(H, i);					// otherwise, what's next...
+		}
+
+		// operate on the hash bucket bits .. take into consideration that the bucket range is limited
+		uint32_t _succ_hh_hash(HHash *T, uint32_t h_bucket, uint32_t i) {
+			if ( i == 32 ) return(UINT32_MAX);  // all the bits in the bucket have been checked
 			uint32_t N = T->_max_n;
-			h = (h % N);
+			uint32_t h = (h_bucket % N);
 			return _succ(h, i);
 		}
 
-
-/*		// these are for testing purposes only
-		uint32_t _next_T(uint32_t _H, uint32_t i) {
-  			uint32_t H = _H & (~0 << i);
-  			if ( H == 0 ) return UINT32_MAX;  // like -1
-			uint32_t ffs = FFS(H);
-cout << " ffs: " << ffs;
-  			return ffs;	// return the count of trailing zeros
-		}
-
-		uint32_t _succ_T(uint32_t h, uint32_t i) {
-			uint32_t *buffer = _region_H;
-			uint32_t H = buffer[h];
-cout << " _succ_T: GET(H, i)  " << GET(H, i);
-  			if ( GET(H, i) ) return i;		// look at the control bits of the test position... see if the position is set.
-			uint32_t b = _next_T(H, i);
-
-cout << " _succ_T-> _next_T: b  " << b;
-
-  			return b;			// otherwise, what's next...
-		}
-
-
-		uint32_t _succ_hh_hash_T(HHash *T, uint32_t h, uint32_t i) {
-			if ( i == 32 ) return(UINT32_MAX);
-			uint32_t N = T->_max_n;
-			h = (h % N);
-cout << "h: " << h << " of " << N << " i: " << i ;
-			uint32_t jk = _succ_T(h, i);
-cout << endl;
-			return jk;
-		}
-*/
 
 		void del_hh_hash(HHash *T, uint32_t h, uint32_t i) {
 			uint32_t *buffer = _region_H;
@@ -268,19 +268,6 @@ cout << endl;
 			// up the count 
 			T->_count++;
 			return(true);
-		}
-
-		uint32_t _next(uint32_t _H, uint32_t i) {
-  			uint32_t H = _H & (~0 << i);
-  			if ( H == 0 ) return UINT32_MAX;  // like -1
-  			return FFS(H);	// return the count of trailing zeros
-		}
-
-		uint32_t _succ(uint32_t h, uint32_t i) {
-			uint32_t *buffer = _region_H;		// the binary pattern
-			uint32_t H = buffer[h];				// the one for the bucket
-   			if ( GET(H, i) ) return i;			// look at the control bits of the test position... see if the position is set.
-  			return _next(H, i);					// otherwise, what's next...
 		}
 
 		/**
@@ -357,35 +344,60 @@ cout << endl;
 			return 0;
 		}
 
-		uint64_t get_val_at_hh_hash(HHash *T, uint32_t h, uint32_t i) {
-			uint32_t offset = (h + i);		// offset from the hash position...
+
+
+		/**
+		 * Returns the value (for this use an offset into the data storage area.)
+		*/
+		uint64_t get_val_at_hh_hash(HHash *T, uint32_t h_bucket, uint32_t i) {
+			uint32_t offset = (h_bucket + i);		// offset from the hash position...
 			uint32_t N = T->_max_n;
 			uint32_t j = (offset % N);		// if wrapping around
 			return(_region_V[j]);			// return value
 		}
 
 
+		// ---- ---- ---- ---- ---- ---- ----
+		// the actual hash key is stored in the lower part of the value pair.
+		// the top part is an index into an array of objects.
+		bool _cmp(uint64_t k, uint64_t x) {		// compares the bottom part of the words
+			bool eq = ((HASH_MASK & k) == (HASH_MASK & x));
+			return(eq); //
+		}
+
+
 		// SET OPERATION
-		// originailly called hunt for a set type...
-		uint64_t hunt_hash_set(HHash *T, uint32_t h, uint64_t k, bool kill) {
-			uint32_t i = _succ_hh_hash(T, h, 0);
+		// originally called hunt for a set type...
+		// In this applicatoin k is a value comparison... and the k value is an offset into an array of stored objects 
+		// walk through the list of position occupied by bucket members. (Those are the ones with the positional bit set.)
+		//
+		uint64_t hunt_hash_set(HHash *T, uint32_t h_bucket, uint64_t key_null, bool kill) {
+			uint32_t i = _succ_hh_hash(T, h_bucket, 0);   // i is the offset into the hash bucket.
 			while ( i != UINT32_MAX ) {
-				uint64_t x = get_val_at_hh_hash(T, h, i);  // get ith value matching this hash (collision)
-				if ( _cmp(k, x) ) {		// compare the discerning hash part of the values (in the case of map, hash of the stored value)
-					if (kill) del_hh_hash(T, h, i);
-					return x;
+				// x is from the value region..
+				uint64_t x = get_val_at_hh_hash(T, h_bucket, i);  // get ith value matching this hash (collision)
+				if ( _cmp(key_null, x) ) {		// compare the discerning hash part of the values (in the case of map, hash of the stored value)
+					if (kill) del_hh_hash(T, h_bucket, i);
+					return x;   // the value is a pair of 32 bit words. The top 32 bits word is the actual value.
 				}
-				i = _succ_hh_hash(T, h, i + 1);  // increment i in some sense (skip unallocated holes)
+				i = _succ_hh_hash(T, h_bucket, (i + 1));  // increment i in some sense (skip unallocated holes)
 			}
 			return 0;		// no value  (values will always be positive, perhaps a hash or'ed onto a 0 value)
 		}
 
 
-		// ---- ---- ---- ---- ---- ---- ----
-		bool _cmp(uint64_t k, uint64_t x) {		// compares the bottom part of the workds
-			bool eq = ((HASH_MASK & k) == (HASH_MASK & x));
-			return(eq); //
+		// The 64 bit key_null is a hash-value pair, with the hash (pattern match) in the bottom 32 bits.
+		// the top 32 bits will contain a value if it is stored. Otherwise, it will be zero (no value stored).
+		// In the main use of this code, the value will be an offset into an array of objects.
+
+		uint64_t get_hh_set(HHash *T, uint32_t hbucket, uint32_t key) {  // T, full_hash, hash_bucket
+			uint64_t zero = 0;
+			uint64_t key_null = (zero | (uint64_t)key); // hopefully this explains it... top 32 are zero (hence no value represented)
+//cout << "get_hh_set: key_null: " << key_null << " hash: " << hash <<  endl;
+			bool flag_delete = false;
+			return hunt_hash_set(T, hbucket, key_null, flag_delete);
 		}
+
 
 		bool put_hh_set(HHash *T, uint32_t h, uint64_t key_val) {
 			if ( key_val == 0 ) return 0;		// cannot store zero values
@@ -396,19 +408,11 @@ cout << endl;
 		}
 
 
-		uint64_t get_hh_set(HHash *T, uint32_t hash, uint32_t key) {
-			uint64_t zero = 0;
-			uint64_t key_null = (zero | (uint64_t)key); // hopefully this explains it... 
-//cout << "get_hh_set: key_null: " << key_null << " hash: " << hash <<  endl;
-			bool flag_delete = false;
-			return hunt_hash_set(T, hash, key_null, flag_delete);
-		}
-
-		uint64_t del_hh_set(HHash *T, uint32_t hash, uint32_t key) { 
+		uint64_t del_hh_set(HHash *T, uint32_t hbucket, uint32_t key) { 
 			uint64_t zero = 0;
 			uint64_t key_null = (zero | (uint64_t)key); // hopefully this explains it... 
 			bool flag_delete = true;
-			return hunt_hash_set(T, hash, key_null, flag_delete); 
+			return hunt_hash_set(T, hbucket, key_null, flag_delete); 
 		}
 
 		// note: not implementing resize since the size of the share segment is controlled by the application..
@@ -417,14 +421,16 @@ cout << endl;
 
 		// loaded value -- value is on top (high word) and the index (top of loaded hash) is on the
 
-		uint64_t put_hh_map(HHash *T, uint32_t hash_of_loaded, uint32_t index, uint32_t value) {
+		// T, hash_bucket, el_key, v_value   el_key == full_hash
+
+		uint64_t put_hh_map(HHash *T, uint32_t hash_bucket, uint32_t full_hash, uint32_t value) {
 			if ( value == 0 ) return false;
 //cout <<  " put_hh_map: loaded_value [value] " << value << " loaded_value [index] " << index;
-			uint64_t loaded_value = (((uint64_t)value) << HALF) | index;
+			uint64_t loaded_value = (((uint64_t)value) << HALF) | full_hash;
 //cout << " loaded_value: " << loaded_value << endl;
-			bool put_ok = put_hh_set(T, hash_of_loaded, loaded_value);
+			bool put_ok = put_hh_set(T, hash_bucket, loaded_value);
 			if ( put_ok ) {
-				uint64_t loaded_key = (((uint64_t)index) << HALF) | hash_of_loaded; // LOADED
+				uint64_t loaded_key = (((uint64_t)full_hash) << HALF) | hash_bucket; // LOADED
 				return(loaded_key);
 			} else {
 				return(UINT64_MAX);

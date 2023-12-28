@@ -30,6 +30,18 @@ using namespace std::chrono;
 
 
 #define MAX_BUCKET_FLUSH 12
+
+
+/**
+ * The 64 bit key stores a 32bit hash (xxhash or other) in the lower word.
+ * The top 32 bits stores a structured bit array. The top 1 bit will be
+ * the selector of the hash region where the key match will be found. The
+ * bottom 20 bits will store the element offset (an element number) to the position the
+ * element data is stored. 
+*/
+
+
+
 /*
 auto ms_since_epoch(std::int64_t m){
   return std::chrono::system_clock::from_time_t(time_t{0})+std::chrono::milliseconds(m);
@@ -189,7 +201,7 @@ class LRU_cache {
 			size_t curr = ctrl_free->_next;
 			size_t next = 4*step;
 			
-			while ( curr < region_size ) {
+			while ( curr < region_size ) {   // all the ends are in the first three elements ... the rest is either free or part of the LRU
 				_count_free++;
 				LRU_element *next_free = (LRU_element *)(start + curr);
 				next_free->_prev = UINT32_MAX;  // singly linked free list
@@ -203,6 +215,9 @@ class LRU_cache {
 				curr += step;
 				next += step;
 			}
+
+			ctrl_free->_hash = _count_free;   // how many free elements avaibale
+			ctrl_hdr->_hash = 0;
 
 		}
 
@@ -229,7 +244,15 @@ class LRU_cache {
 		//	add_el moves the element from the free list to the list of allocated positions. These are doubly linked lists.
 		//	Each element of the list as a time of insertion, which add_el records.
 		//
-		 uint32_t add_el(char *data,uint64_t hash64) {
+
+		uint32_t add_el(char *data,uint64_t hash64) {
+			uint32_t hash_bucket = (uint32_t)(hash64 & 0xFFFFFFFF);
+			uint32_t full_hash = (uint32_t)((hash64 >> HALF) & 0xFFFFFFFF);
+			return add_el(data, full_hash, hash_bucket);
+		}
+
+
+		uint32_t add_el(char *data,uint32_t full_hash,uint32_t hash_bucket) {
 			//
 			uint8_t *start = _region;
 			size_t step = _step;
@@ -244,7 +267,7 @@ class LRU_cache {
 			uint32_t new_el_offset = ctrl_free->_next;
 			// in rare cases the hash table may be frozen even if the LRU is not full
 			//
-			uint64_t store_stat = this->store_in_hash(hash64,new_el_offset);  // STORE
+			uint64_t store_stat = this->store_in_hash(full_hash,hash_bucket,new_el_offset);  // STORE
 			//
 			if ( store_stat == UINT64_MAX ) {
 				return(UINT32_MAX);
@@ -261,6 +284,7 @@ class LRU_cache {
 			header->_next = new_el_offset;
 			//
 			new_el->_when = epoch_ms();
+			uint64_t hash64 = (((uint64_t)full_hash << HALF) | (uint64_t)hash_bucket);	
 			new_el->_hash = hash64;
 			char *store_el = (char *)(new_el + 1);
 			//
@@ -371,11 +395,12 @@ class LRU_cache {
 
 		}
 
-		uint64_t store_in_hash(uint64_t key64,uint32_t new_el_offset) {
+		uint64_t store_in_hash(uint32_t full_hash,uint32_t hash_bucket,uint32_t new_el_offset) {
 			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
+				uint64_t key64 = (((uint64_t)full_hash << HALF) | (uint64_t)hash_bucket);				
 				_local_hash_table[key64] = new_el_offset;
 			} else {
-				uint64_t result = _hmap_i->store(key64,new_el_offset); //UINT64_MAX
+				uint64_t result = _hmap_i->store(hash_bucket,full_hash,new_el_offset); //UINT64_MAX
 				//count << "store_in_hash: " << result << endl;
 				return result;
 			}
@@ -383,15 +408,37 @@ class LRU_cache {
 		}
 
 
+		uint64_t store_in_hash(uint64_t hash64,uint32_t new_el_offset) {
+			uint32_t hash_bucket = (uint32_t)(hash64 & 0xFFFFFFFF);
+			uint32_t full_hash = (uint32_t)((hash64 >> HALF) & 0xFFFFFFFF);
+			return store_in_hash(full_hash,hash_bucket,new_el_offset);
+		}
+
+
 		// check_for_hash
-		// either returns an offset to the data or return the UINT32_MAX.  (4,294,967,295)
+		// either returns an offset to the data or returns the UINT32_MAX.  (4,294,967,295)
 		uint32_t check_for_hash(uint64_t key) {
-			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl -- means the table was not initialized to use shared memory
 				if ( _local_hash_table.find(key) != _local_hash_table.end() ) {
 					return(_local_hash_table[key]);
 				}
 			} else {
 				uint32_t result = _hmap_i->get(key);
+				if ( result != 0 ) return(result);
+			}
+			return(UINT32_MAX);
+		}
+
+		// check_for_hash
+		// either returns an offset to the data or returns the UINT32_MAX.  (4,294,967,295)
+		uint32_t check_for_hash(uint32_t key,uint32_t bucket) {    // full_hash,hash_bucket  :: key == full_hash
+			if ( _hmap_i == nullptr ) {   // no call to set_hash_impl -- means the table was not initialized to use shared memory
+					uint64_t hash64 = (((uint64_t)key << HALF) | (uint64_t)bucket);
+				if ( _local_hash_table.find(hash64) != _local_hash_table.end() ) {
+					return(_local_hash_table[hash64]);
+				}
+			} else {
+				uint32_t result = _hmap_i->get(key,bucket);
 				if ( result != 0 ) return(result);
 			}
 			return(UINT32_MAX);
